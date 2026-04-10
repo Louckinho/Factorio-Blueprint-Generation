@@ -59,10 +59,8 @@ function App() {
     { id: 'substation', name: 'Substation (High-Tech)' },
   ]
 
-  // Carga inicial dos itens da biblioteca Draftsman
-  useEffect(() => {
-    // Helper para buscar ícones da Wiki Oficial do Factorio
   const getWikiIconUrl = (itemName: string) => {
+    if (!itemName) return "";
     // Transforma 'express-transport-belt' em 'Express_transport_belt.png'
     const formatted = itemName
       .split('-')
@@ -71,7 +69,9 @@ function App() {
     return `https://wiki.factorio.com/images/${formatted}.png`;
   };
 
-  const fetchItems = async () => {
+  // Carga inicial dos itens da biblioteca Draftsman
+  useEffect(() => {
+    const fetchItems = async () => {
       try {
         const res = await fetch('http://127.0.0.1:8000/api/items/');
         const data = await res.json();
@@ -275,6 +275,8 @@ function App() {
                 {entities.map((ent: any, index: number) => {
                   const pos = ent.position;
                   const type = ent.name;
+                  if (!pos || !type) return null; // Prevenção de crash (V4.4.1)
+                  
                   const scale = 20; 
                   let size = 1;
                   if (type.includes('assembling-machine')) size = 3;
