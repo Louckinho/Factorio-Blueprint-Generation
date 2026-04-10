@@ -1,10 +1,46 @@
 {
   "plastic-bar": {
     "ingredients": [
-      {"name": "coal", "amount": 1},
-      {"name": "petroleum-gas", "amount": 20}
+      {"name": "coal", "amount": 1, "type": "item"},
+      {"name": "petroleum-gas", "amount": 20, "type": "fluid"}
+    ],
+    "results": [
+      {"name": "plastic-bar", "amount": 2}
     ],
     "energy_required": 1,
     "category": "chemistry"
+  },
+  "advanced-circuit": {
+    "ingredients": [
+      {"name": "electronic-circuit", "amount": 2, "type": "item"},
+      {"name": "plastic-bar", "amount": 2, "type": "item"},
+      {"name": "copper-cable", "amount": 4, "type": "item"}
+    ],
+    "results": [
+      {"name": "advanced-circuit", "amount": 1}
+    ],
+    "energy_required": 6,
+    "category": "crafting"
+  },
+  "electronic-circuit": {
+    "ingredients": [
+      {"name": "iron-plate", "amount": 1, "type": "item"},
+      {"name": "copper-cable", "amount": 3, "type": "item"}
+    ],
+    "results": [
+      {"name": "electronic-circuit", "amount": 1}
+    ],
+    "energy_required": 0.5,
+    "category": "crafting"
+  },
+  "copper-cable": {
+    "ingredients": [
+      {"name": "copper-plate", "amount": 1, "type": "item"}
+    ],
+    "results": [
+      {"name": "copper-cable", "amount": 2}
+    ],
+    "energy_required": 0.5,
+    "category": "crafting"
   }
 }
