@@ -28,11 +28,18 @@ class BusDesigner:
             
             if node.get("is_raw_input"):
                 # Consumo (Sinais negativos)
-                input_signals.append({"name": item, "count": -int(rate_per_min)})
+                input_signals.append({
+                    "name": item, 
+                    "count": -int(rate_per_min),
+                    "type": "fluid" if node.get("is_fluid") else "item"
+                })
             elif node.get("machines_needed", 0) > 0 and item == nodes_requirements[0]["item"]:
                 # Produção do item alvo (Sinais positivos)
-                # Assumimos que o primeiro nó é o target principal
-                output_signals.append({"name": item, "count": int(rate_per_min)})
+                output_signals.append({
+                    "name": item, 
+                    "count": int(rate_per_min),
+                    "type": "fluid" if node.get("is_fluid") else "item"
+                })
 
         # 4. Criar entidades de combinadores
         # Posicionamos os combinadores no início dos barramentos

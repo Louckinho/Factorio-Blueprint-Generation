@@ -1,5 +1,5 @@
 from draftsman.blueprintable import Blueprint
-from draftsman.entity import AssemblingMachine, ConstantCombinator, TransportBelt
+from draftsman.entity import AssemblingMachine, ConstantCombinator, TransportBelt, Inserter, Pipe, UndergroundPipe, Splitter, UndergroundBelt, ElectricPole
 from draftsman.data import entities
 
 class DraftsmanCompiler:
@@ -7,10 +7,11 @@ class DraftsmanCompiler:
         self.blueprint = Blueprint()
         self.blueprint.label = label
 
-    def generate_blueprint_string(self, layout_data: list, bus_metadata: dict = None, inserters: list = None, belts: list = None) -> str:
+    def generate_blueprint_string(self, layout_data: list, bus_metadata: dict = None, inserters: list = None, belts: list = None, pipes: list = None, poles: list = None):
         """
-        Materializa o layout e os barramentos em uma string de Blueprint.
+        Materializa o layout e os barramentos em uma string de Blueprint e retorna também o mapa de entidades.
         """
+        raw_entities = []
         # 1. Adicionar máquinas do layout
         for cluster in layout_data:
             for machine in cluster["machines"]:
@@ -42,7 +43,6 @@ class DraftsmanCompiler:
                 
         # 3. Adicionar Inserters alocados pelo Pathfinding
         if inserters:
-            from draftsman.entity import Inserter
             for ins in inserters:
                 try:
                     inserter_entity = Inserter(ins["name"], tile_position=(ins["x"], ins["y"]), direction=ins["direction"])
@@ -54,12 +54,43 @@ class DraftsmanCompiler:
         if belts:
             for b in belts:
                 try:
-                    belt_entity = TransportBelt(b["name"], tile_position=(b["x"], b["y"]), direction=b.get("direction", 0))
-                    self.blueprint.entities.append(belt_entity)
+                    name = b["name"]
+                    if "splitter" in name:
+                        ent = Splitter(name, tile_position=(b["x"], b["y"]), direction=b.get("direction", 4))
+                    elif "underground-belt" in name:
+                        ent = UndergroundBelt(name, tile_position=(b["x"], b["y"]), direction=b.get("direction", 4))
+                        ent.io_type = b.get("type", "input")
+                    else:
+                        ent = TransportBelt(name, tile_position=(b["x"], b["y"]), direction=b.get("direction", 0))
+                    self.blueprint.entities.append(ent)
                 except Exception as e:
-                    print(f"Erro Belt: {e}")
+                    print(f"Erro Belt/Splitter: {e}")
 
-        return self.blueprint.to_string()
+        # 5. Adicionar Canos alocados pelo Pathfinding
+        if pipes:
+            from draftsman.entity import Pipe, UndergroundPipe
+            for p in pipes:
+                try:
+                    name = p["name"]
+                    if name == "pipe-to-ground":
+                        ent = UndergroundPipe(name, tile_position=(p["x"], p["y"]), direction=p.get("direction", 0))
+                    else:
+                        ent = Pipe(name, tile_position=(p["x"], p["y"]))
+                    self.blueprint.entities.append(ent)
+                except Exception as e:
+                    print(f"Erro Pipe: {e}")
+
+        # 6. Adicionar Postes de Energia (V4.4)
+        if poles:
+            for p in poles:
+                try:
+                    ent = ElectricPole(p["name"], tile_position=(p["x"], p["y"]))
+                    self.blueprint.entities.append(ent)
+                except Exception as e:
+                    print(f"Erro Pole: {e}")
+
+        blueprint_dict = self.blueprint.to_dict()
+        return self.blueprint.to_string(), blueprint_dict["blueprint"].get("entities", [])
 
     def _add_bus_structures(self, bus_info: dict, direction: str):
         """
@@ -71,7 +102,8 @@ class DraftsmanCompiler:
         # Adicionar sinais ao combinador
         for i, signal in enumerate(comb_data["signals"]):
             try:
-                # Na versão 3.x do Draftsman (Factorio 2.0), usamos set_signal
+                # set_signal(index, name, count, type)
+                sig_type = signal.get("type", "item")
                 comb.set_signal(i, signal["name"], signal["count"])
             except:
                 pass

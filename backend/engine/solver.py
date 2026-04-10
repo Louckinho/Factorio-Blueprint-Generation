@@ -2,7 +2,7 @@ import json
 import os
 import networkx as nx
 import math
-from draftsman.data import recipes
+from draftsman.data import recipes, entities
 
 class RateSolver:
     def __init__(self):
@@ -10,16 +10,20 @@ class RateSolver:
         self.recipe_data = recipes.raw
         self.graph = nx.DiGraph()
 
-    def resolve_requirements(self, target_item: str, rate_per_minute: float, default_crafting_speed: float = 1.25):
+    def resolve_requirements(self, target_item: str, rate_per_minute: float, machine_name: str = "assembling-machine-3"):
         """
         Calcula a quantidade exata de ingredientes e máquinas necessárias subindo a árvore com DFS.
-        default_crafting_speed: 1.25 (Assembling Machine 3)
         """
+        # Obter Velocidade Real da Máquina do banco de dados do Factorio
+        crafting_speed = 1.25 # Fallback
+        if machine_name in entities.raw:
+            crafting_speed = entities.raw[machine_name].get("crafting_speed", 1.25)
+
         # Convert rate to per second
         rate_per_sec = rate_per_minute / 60.0
         
         # Iniciar recursão
-        self._traverse_recipe(target_item, rate_per_sec, default_crafting_speed)
+        self._traverse_recipe(target_item, rate_per_sec, crafting_speed)
 
         # Extrair os nós ordenados (opcionalmente sort topológico, embora Graph já tenha estrutura)
         nodes = []
@@ -30,6 +34,7 @@ class RateSolver:
                 "item": item_name,
                 "machines_needed": data.get("machines", 0.0),
                 "is_raw_input": data.get("is_raw", False),
+                "is_fluid": data.get("is_fluid", False),
                 "rate_per_sec": data.get("rate", 0.0)
             })
 
@@ -49,7 +54,16 @@ class RateSolver:
             if self.graph.has_node(item_name) and 'rate' in self.graph.nodes[item_name]:
                 self.graph.nodes[item_name]['rate'] += required_rate_per_sec
             else:
-                self.graph.add_node(item_name, machines=0, is_raw=True, rate=required_rate_per_sec)
+                # Como saber se o insumo básico é fluido se não tem receita dele?
+                # No Factorio, itens crus básicos como 'water' ou 'crude-oil' são fluidos.
+                # Podemos conferir no banco de dados de 'items' ou 'fluids' do draftsman
+                is_fluid = False 
+                # (Simplificação: se estiver na lista de fluidos do draftsman)
+                from draftsman.data import fluids
+                if item_name in fluids.raw:
+                    is_fluid = True
+
+                self.graph.add_node(item_name, machines=0, is_raw=True, rate=required_rate_per_sec, is_fluid=is_fluid)
             current_path.remove(item_name)
             return
 
@@ -70,12 +84,20 @@ class RateSolver:
         machines_exact = required_rate_per_sec / items_per_sec_per_machine
 
         # Atualiza Grafo
+        is_fluid = False
+        if "results" in recipe:
+            for res in recipe["results"]:
+                if res["name"] == item_name and res.get("type") == "fluid":
+                    is_fluid = True
+                    break
+
         if self.graph.has_node(item_name) and 'rate' in self.graph.nodes[item_name]:
             self.graph.nodes[item_name]['rate'] += required_rate_per_sec
             self.graph.nodes[item_name]['machines'] += machines_exact
             self.graph.nodes[item_name]['is_raw'] = False
+            self.graph.nodes[item_name]['is_fluid'] = is_fluid
         else:
-            self.graph.add_node(item_name, machines=machines_exact, is_raw=False, rate=required_rate_per_sec)
+            self.graph.add_node(item_name, machines=machines_exact, is_raw=False, rate=required_rate_per_sec, is_fluid=is_fluid)
 
         # Traverse ingredientes
         for ingredient in recipe.get("ingredients", []):

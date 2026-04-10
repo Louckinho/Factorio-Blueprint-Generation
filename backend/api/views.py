@@ -4,6 +4,7 @@ from rest_framework import status
 from .schemas import SimpleModeRequest, AdvancedModeRequest
 from engine.pipeline import execute_generation_pipeline
 from pydantic import ValidationError
+from draftsman.data import recipes
 import json
 
 class BlueprintGenerateView(APIView):
@@ -23,12 +24,13 @@ class BlueprintGenerateView(APIView):
                 )
 
             # Chama o motor passando o dicionário limpo validado pelo Pydantic
-            blueprint_string = execute_generation_pipeline(parsed_data.model_dump())
+            blueprint_string, entities = execute_generation_pipeline(parsed_data.model_dump())
             
             # Retorna com a resposta validada
             return Response({
                 "status": "success",
                 "blueprint_string": blueprint_string,
+                "entities_map": entities,
                 "metadata": {
                     "item": getattr(parsed_data, 'target', 'custom-nodes')
                 }
@@ -38,3 +40,26 @@ class BlueprintGenerateView(APIView):
             return Response({"error": "Payload validation failed", "details": e.errors()}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class RecipeListView(APIView):
+    def get(self, request):
+        """
+        Retorna todos os itens baseados nas chaves das receitas do Factorio.
+        """
+        try:
+            items_list = []
+            for item_id, data in recipes.raw.items():
+                # Formata o nome para exibição (ex: advanced-circuit -> Advanced Circuit)
+                display_name = item_id.replace('-', ' ').title()
+                items_list.append({
+                    "id": item_id,
+                    "name": display_name
+                })
+            
+            # Ordenar alfabeticamente
+            items_list.sort(key=lambda x: x["name"])
+            
+            return Response(items_list, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

@@ -3,14 +3,22 @@ import math
 class Clusterizer:
     # Máquinas padrões fatoradas (Asssembling Machine é 3x3)
     ENTITY_SIZE = 3 
+    
+    # Capacidade nominal das esteiras em itens/seg
+    BELT_CAPACITIES = {
+        "transport-belt": 15.0,
+        "fast-transport-belt": 30.0,
+        "express-transport-belt": 45.0
+    }
 
     @staticmethod
-    def group(nodes_requirements: list):
+    def group(nodes_requirements: list, machine_name: str = "assembling-machine-3", belt_name: str = "express-transport-belt"):
         """
         Analisa a lista de máquinas requiridas e as agrupa (Clusters).
-        Retorna blocos físicos brutos com width/height prontos para Bin Packing.
+        Se a vazão total do cluster exceder a esteira, divide em múltiplas colunas.
         """
         clusters = []
+        belt_cap = Clusterizer.BELT_CAPACITIES.get(belt_name, 45.0)
 
         for node in nodes_requirements:
             if node.get("is_raw_input"):
@@ -24,20 +32,29 @@ class Clusterizer:
                 continue
                 
             qty = math.ceil(machines_exact)
-
-            # Estratégia de Clustering Linear Local (v1):
-            # Se tenho N máquinas, farei um bloco de proporção N x 1 (em linha)
-            # Futuramente implementaremos Direct Insertion Pairs (ex: Cobre + Verde grudados)
-            width = Clusterizer.ENTITY_SIZE
-            height = Clusterizer.ENTITY_SIZE * qty
+            
+            # Cálculo de Saturação:
+            # Qual a vazão total desse grupo?
+            total_rate = node.get("rate_per_sec", 0)
+            num_lanes = math.ceil(total_rate / belt_cap) if total_rate > 0 else 1
+            
+            # Se precisarmos de 2 lanes, teremos 2 colunas de máquinas
+            machines_per_lane = math.ceil(qty / num_lanes)
+            
+            width = Clusterizer.ENTITY_SIZE * num_lanes + (num_lanes - 1) * 2 # Espaço para belts entre colunas
+            height = Clusterizer.ENTITY_SIZE * machines_per_lane
 
             # Monta o registro interno do cluster e suas posições relativas
             machines = []
             for i in range(qty):
+                lane_idx = i // machines_per_lane
+                pos_in_lane = i % machines_per_lane
+                
                 machines.append({
                     "item": item,
-                    "rel_x": 0,                   # Posição X relativa dentro deste cluster
-                    "rel_y": i * Clusterizer.ENTITY_SIZE # Cada máquina desce 3 tiles
+                    "machine_type": machine_name,
+                    "rel_x": lane_idx * (Clusterizer.ENTITY_SIZE + 2), # Cada lane pula a maquina + espaço p/ belt
+                    "rel_y": pos_in_lane * Clusterizer.ENTITY_SIZE
                 })
 
             clusters.append({

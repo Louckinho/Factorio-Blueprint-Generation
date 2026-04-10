@@ -73,8 +73,14 @@
   color: #ef4444;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
 .form-group {
-  margin-bottom: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -85,18 +91,26 @@
   color: var(--text-primary);
 }
 
-.form-group input {
+.form-group input, 
+.form-group select {
   padding: 0.8rem;
   border-radius: 6px;
   border: 1px solid var(--border-color);
   background: rgba(15, 23, 42, 0.5);
   color: white;
   font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 1rem;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
   outline: none;
   border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
 }
 
 .btn-generate {
@@ -144,3 +158,170 @@
   font-family: monospace;
   resize: vertical;
 }
+
+/* Visualizer Styles */
+.visualizer-container {
+  margin-top: 30px;
+  background: #111827;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: auto;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+}
+
+.visualizer-container h3 {
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.blueprint-grid {
+  position: relative;
+  background-color: #0b0f1a;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  width: 100%;
+  min-width: 800px;
+  min-height: 500px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+}
+
+.grid-entity {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+  cursor: help;
+}
+
+.grid-entity:hover {
+  filter: brightness(1.3);
+  z-index: 100;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.machine {
+  background: rgba(245, 158, 11, 0.3);
+  border: 2px solid #f59e0b;
+}
+
+.belt {
+  background: rgba(59, 130, 246, 0.5);
+  border: 1px solid #3b82f6;
+  border-radius: 2px;
+}
+
+.inserter {
+  background: rgba(34, 197, 94, 0.6);
+  border: 1px solid #22c55e;
+  border-radius: 50%;
+}
+
+.combinator {
+  background: rgba(234, 179, 8, 0.6);
+  border: 1px solid #eab308;
+}
+
+.pipe {
+  background: rgba(0, 255, 255, 0.5); /* Cyan */
+  border: 1px solid #00ffff;
+  border-radius: 4px;
+}
+
+.splitter {
+  background: rgba(234, 179, 8, 0.8) !important; /* Amarelo Forte */
+  border: 2px solid #fbbf24;
+  z-index: 10;
+}
+
+.underground {
+  background: rgba(30, 41, 59, 0.9) !important; /* Cinza Escuro */
+  border: 1px dashed #94a3b8;
+}
+
+.pole {
+  background: rgba(253, 224, 71, 0.5); /* Yellow */
+  border: 1px solid #facc15;
+  border-radius: 50%;
+  z-index: 20;
+}
+
+.substation {
+  background: rgba(30, 64, 175, 0.6); /* Blueprint Blue */
+  border: 2px solid #3b82f6;
+  z-index: 20;
+}
+
+
+/* Search Dropdown Styles */
+.search-container {
+  position: relative;
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 999;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.dropdown-item {
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--primary-color);
+  padding-left: 1.25rem;
+}
+
+.dropdown-no-results {
+  padding: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
+}
+
+/* Custom Scrollbar for Dropdown */
+.search-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.search-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.search-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+
