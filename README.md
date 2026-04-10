@@ -1,118 +1,129 @@
 <div align="center">
-  <h1>🏭 Factorio Blueprint Generator Django</h1>
-  <p><b>Algorithmic Blueprint Generator (High-Density Edition) - v4.0</b></p>
+  <h1>🏭 FBG-Django: Algorithmic Blueprint Generator</h1>
+  <p><b>High-Density Edition (v4.0)</b></p>
+  <p><i>The Ultimate Factorio 1.1+ Routing and Packing Engine</i></p>
 </div>
 
 <p align="center">
-  Uma API RESTful acoplada a um Frontend em Vite projetada para gerar Blueprint Strings para o Factorio (Vanilla 1.1+) com níveis extremos de densidade e layout de <i>Megabase</i>.
+  Uma plataforma baseada em <b>Django REST Framework + React/Vite</b> construída do zero para resolver matematicamente o caos do Factorio. Em vez de criar *spaghettis*, esta API calcula proporções perfeitas usando Teoria dos Grafos, agrupa montadoras via algoritmos de inserção direta e as envelopa num city block compacto perfeito utilizando <b>Bin Packing 2D</b> espacial puro e pathfinding A*.
 </p>
 
 ---
 
-## 🎯 Visão Geral
-
-Diferente de geradores clássicos que apenas empilham fornalhas em linhas infinitas, o **FBG-Django v4.0** utiliza um *Motor de Roteamento Heurístico de Alta Densidade*. Ele agrupa logicamente máquinas (Clustering) combinando-as numa geometria retangular perfeita através de empacotamento em duas dimensões (Bin Packing 2D - MaxRects), traçando e resolvendo o *belt weaving* utilizando algoritmos avançados de *Pathfinding (A\*)* baseados em rotas ortogonais.
-
-Tudo é rigorosamente envolto por um ***Input Bus*** e um ***Output Bus*** devidamente balanceado, provido de *Constant Combinators* que mapeiam em tempo-real exatamente as taxas de produção versus insumo, garantindo *tiling* perfeito em malhas de trens (City Blocks).
-
-## 🧰 Stack Tecnológica
-
-O sistema segue a filosofia *Separation of Concerns* debaixo das seguintes ferramentas:
-
-### Backend (The Engine)
-- **Linguagem**: Python 3.12+
-- **Framework Ouro**: Django 5.x + Django Rest Framework (DRF)
-- **Validação de Payload**: Pydantic v2 (Segurança de tipagem estrita de API)
-- **Matemática do Motor**: `networkx` para Topologia de Nós, empacotamento matricial com MaxRects/Guillotine.
-- **Factory Encoding**: `factorio-draftsman` para materializar a lógica em um Blueprint em Base64.
-
-### Frontend
-- **Framework**: React 19 construído com Vite
-- **Tipagem**: TypeScript
-- **Estética**: CSS3 Vanilla (Glassmorphism + Dark Mode), sem dependências pesadas de Frameworks de UI (No Tailwind), almejando estética Premium.
+## 🧰 Stack Tecnológica e Filosofia
+* **Backend:** Python 3.12+, Django 5.x, DRF, Pydantic (validação blindada), NetworkX (Grafos Lineares), `factorio-draftsman`.
+* **Frontend:** React 19, Vite, TypeScript, Vanilla CSS (estética rica de Glassmorphism/Dark Mode sem frameworks intrusivos).
+* **Paradigmas:** *Separation of Concerns*, Pipeline 100% Desacoplado, Test-Driven Architecture.
 
 ---
 
-## 🧠 Arquitetura do Motor Lógico do FBG-Django
+## 🧠 Arquitetura do Motor (O Pipeline Principal)
 
-Toda vez que a API recebe uma requisição POST de `/api/generate/`, o *pipeline arquitetural cego* (onde toda a saída da camada vira entrada restritiva para a seguinte) se inicia:
+Nenhum arquivo chama o outro acidentalmente. A API recebe o payload JSON e injeta no `engine/pipeline.py`, que cruza as camadas sequencialmente:
 
-1. **Rate Solver (`solver.py`)**: Valida `recipes.json`, traça *Topological sort* (tratando ciclos) limitando a fabricação das máquinas pelo *rate_per_minute* estrito.
-2. **Clustering (`clustering.py`)**: Minimiza esteiras conectando componentes que funcionam em proporção compatível fisicamente de inserção direta (ex: 3 Fios de Cobre colados diretos em 2 Máquinas de Verde).
-3. **Bin Packing (`bin_packing.py`)**: Posiciona retângulos espaciais brutos com algoritmos geométricos visando 1:1 de Aspect Ratio.
-4. **Bus Designer (`bus_designer.py`)**: Configura as bordas e define Constant Combinators com lógicas estritas de leitura estatística.
-5. **Lane Mapper (`lane_mapper.py`)**: Resolve restrições Multiplexadas, decidindo quando as pistas esquerdas ou direitas de um mesmo belt serão misturadas ou purgadas.
-6. **Pathfinding (`pathfinding.py`)**: A* (A-Star) direcionado em grade contínua conectando os clusters de máquinas e Bus de IOs de forma orgânica e cruzada (privilegia *underground*).
-7. **Overlays**: Rotinas finais que impõem postes de energia (`electrical.py`), pumps na divisão de fluidos paraleis (`fluids.py`) e *Overlap placement* para sinalizadores (`beacons.py`).
-8. **Draftsman Compiler**: Encapsulamento de tudo na API do Draftsman, exportando e decodificando o arquivo final.
+1. **Rate Solver (`solver.py`)**: Valida o Grafo Topológico. Usa dados nativos para calcular quantas máquinas exatas são precisas para suprir a requisição sem sub ou superprodução.
+2. **Clustering (`clustering.py`)**: Analisa as "taxas". Se X fios de cobre sustentam Y máquinas de circuito verde com proximidade de inserters (ratio 3:2 por exemplo), o sistema as "cola" e bane esteiras intermediárias ali. É o poder da Inserção Direta Máxima.
+3. **Bin Packing (`bin_packing.py`)**: Algoritmos de *MaxRects* e *Guillotine*. Os clusters são tratados como rectângulos imutáveis 2D e rotacionados inteligentemente dentro de um grande quadrado buscando Aspect Ratio 1:1.
+4. **Bus Designer (`bus_designer.py`)**: Aloca de forma imutável o *Input Bus* num flanco, o *Output Bus* no outro, e insere os *Constant Combinators* com os consumos/produções por minuto assinalados e perfeitamente calculados.
+5. **Lane Mapper / Pathfinding (`lane_mapper.py` e `pathfinding.py`)**: Algoritmos customizados de *A-Star (A\*)* correm num grid ortogonal, desviando de fornalhas, privilegiando *Underground Belts* (custo heurístico pífio) para maximizar "weaves" insanos, sem cruzar fluídos.
 
 ---
 
-## 🛠 Como Instalar Localmente
+## 🗃️ De onde vêm os Dados (Receitas / Factorio Data)?
 
-### 1️⃣ Inicializando o Backend
-O Backend serve a API nos portais na porta 8000 do Django via SQLite puramente.
+O gerador precisa saber o "custo" exato de cada receita, tempos de crafting e velocidades.
+Para fornecer isso, usaremos o padrão purista `data/recipes.json` e a biblioteca `factorio-draftsman`.
 
+**Como conseguir e atualizar essas informações?**
+1. O *Draftsman* já injeta boa parte das dimensões das entidades padrões internamente (o tamanho físico de um Chemical Plant, etc).
+2. Para gerar dump customizado e puro (ex: receitas de Mods complexos), é utilizado um mod in-game do Factorio como o **gvv** (Gopher's Variables Viewer) ou dumper CLI do próprio Factorio. Este dump deve ser parametrizado num arquivo master para alimentar o nosso *Rate Solver*. No futuro, nossa pasta `engine/data/` armazenará isso de forma dinâmica em JSON puro para velocidade de memória (cache in-memory).
+
+---
+
+## 🚀 Como Executar o Projeto Localmente
+
+O sistema roda localmente dividindo o cérebro em duas frentes independentes: A API que pensa a geometria, e o SPA que desenha o painel.
+
+### 1️⃣ Subindo a API Django (Porta 8000)
 ```bash
-# Navegue até o módulo do backend
 cd backend/
 
-# Crie e inicie o ambiente virtual (venv)
-python -m venv venv
-.\venv\Scripts\Activate.ps1    # No Windows (use source venv/bin/activate no Linux/Mac)
+# Ative seu ambiente virtual (Importante!)
+.\venv\Scripts\Activate.ps1    # PowerShell (Windows)
 
-# Instalar dependências estritas v4
+# Instale os pacotes requeridos Pydantic, Draftsman, DRF
 pip install -r requirements.txt
 
-# Aplicar migrações do DRF
+# Inicialize o banco base do Django
 python manage.py migrate
 
-# Subir a API
+# Inicie o ecossistema nas portas
 python manage.py runserver
 ```
 
-### 2️⃣ Inicializando o Frontend
-O frontend fica apartado para facilitar desacoplamento visual/escalabilidade. 
-
+### 2️⃣ Subindo o SPA React (Porta 5173)
+Em um **novo** terminal:
 ```bash
-# Abra um novo terminal e navegue para o Frontend
 cd frontend/
 
-# Instalar dependências do ecossistema JS
+# Garanta o node_modules na raiz do front
 npm install
 
-# Subir e compilar local server
+# Suba o Hot Reload do Vite
 npm run dev
 ```
+Após isso, seu portal visual estará vivo e comunicando via Fetch com o Django! O CORS da API já esta preparado para aceitar pacotes do Vite.
 
 ---
 
-## 📄 Contrato da API (Exemplo / Modo Simples)
+## 📡 Como Consumir nossa API e Exemplo de Payload
 
-Mande via `POST` em `/api/generate/`:
+Acesso total na rota: **`POST http://localhost:8000/api/generate/`**  
 
-```json
-{
-  "mode": "simple",
-  "target": "plastic-bar",
-  "rate_per_minute": 5000,
-  "options": {
-    "tileable_block": true,
-    "max_machines_per_block": 15
-  },
-  "tech_tier": {
-    "belt": "express-transport-belt",
-    "inserter": "fast-inserter",
-    "machine": "chemical-plant"
-  },
-  "modules": {
-    "beaconized": true,
-    "beacon_entity": "beacon",
-    "machine_modules": ["productivity-module-3"],
-    "beacon_modules": ["speed-module-3"]
-  }
-}
+### 🧰 Modo Simples (Recomendado)
+A interface pede ao Engine apenas: *"Me resolva X plásticos por minuto usando Y Tech e me devolva o blueprint."*
+
+**Exemplo via Node.js/Fetch Assíncrono:**
+```javascript
+const response = await fetch("http://127.0.0.1:8000/api/generate/", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    "mode": "simple",
+    "target": "plastic-bar",
+    "rate_per_minute": 5000,
+    "options": {
+      "tileable_block": true,
+      "max_machines_per_block": 15
+    },
+    "tech_tier": {
+      "belt": "express-transport-belt",
+      "inserter": "fast-inserter",
+      "machine": "chemical-plant"
+    },
+    "modules": {
+      "beaconized": true,
+      "beacon_entity": "beacon",
+      "machine_modules": ["productivity-module-3"],
+      "beacon_modules": ["speed-module-3"]
+    }
+  })
+});
+const data = await response.json();
+console.log(data.blueprint_string); // "0eNq....."
 ```
 
+### 🔬 O Significado do Contrato de Payload (Regras de Segurança v4.0)
+
+Nossa camada recebe proteção e sanitização estrita via `Pydantic` debaixo do capô:
+* **`target` / `rate_per_minute`:** Diz ao Solver qual nó raiz focar e as métricas absolutas (ex: 5000/min).
+* **`options.tileable_block`:** Se `true`, a Engine vai focar em manter proporções simétricas para que, se você der CTRL+C e CTRL+V um blueprint colado ao lado do outro, cinturões e trilhos conectem perfeitamente.
+* **`tech_tier`:** Filtro rígido temporal. Em early game injete `"belt": "transport-belt"`, e em late game injecte express (azul). Nosso Pydantic validará a entidade contra compatibilidade *Vanilla*.
+* **`modules.beaconized`:** Se "true", ativa o script `overlays/beacons.py` calculando sobreposições para não desperdiçar energia empilhando sinais máximos (`speed-module-3`) ao mesmo tempo em que espeta (`productivity-module-3`) nas pontas ativas.
+
+### 🛠 Modo Avançado (Override de Grafos)
+Se enviado `"mode": "advanced"`, o *Rate Solver* é sumariamente ignorado e pulado. O payload DEVE prover o mapeamento topográfico hardcoded na key `nodes`. Ideal para quando o jogador fez a matemática no Factorio Calculator / Helmod e quer apenas que organizemos e retangulizemos a geometria!
+
 ---
-Criado para escalar City Blocks!
+> Baseado no *Documento de Especificação de Software, Arquitetura e Contratos* (04-2026).
+> Todo o motor foi edificado num VirtualEnv puro e segue as normas *Separation of Concerns* garantido densidade máxima.

@@ -1,0 +1,10 @@
+{
+  "plastic-bar": {
+    "ingredients": [
+      {"name": "coal", "amount": 1},
+      {"name": "petroleum-gas", "amount": 20}
+    ],
+    "energy_required": 1,
+    "category": "chemistry"
+  }
+}

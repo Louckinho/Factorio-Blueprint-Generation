@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .schemas import SimpleModeRequest, AdvancedModeRequest
+from engine.pipeline import execute_generation_pipeline
 from pydantic import ValidationError
 import json
 
@@ -21,16 +22,15 @@ class BlueprintGenerateView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # TODO: Call the backend engine pipeline here in future steps
-            # engine_pipeline(parsed_data.model_dump())
+            # Chama o motor passando o dicionário limpo validado pelo Pydantic
+            blueprint_string = execute_generation_pipeline(parsed_data.model_dump())
             
-            # Temporary Stub Return for Architecture Validation
+            # Retorna com a resposta validada
             return Response({
                 "status": "success",
-                "blueprint_string": "0e...", # Base64 placeholder
+                "blueprint_string": blueprint_string,
                 "metadata": {
-                    "item": getattr(parsed_data, 'target', 'custom-nodes'),
-                    "warnings": ["Engine logic is mocked in this milestone."]
+                    "item": getattr(parsed_data, 'target', 'custom-nodes')
                 }
             }, status=status.HTTP_200_OK)
 
