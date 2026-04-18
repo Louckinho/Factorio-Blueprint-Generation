@@ -7,6 +7,52 @@ class DraftsmanCompiler:
         self.blueprint = Blueprint()
         self.blueprint.label = label
 
+    def generate_from_entities(self, entities_list: list):
+        """
+        Gera um blueprint a partir de uma lista simples de entidades.
+        Cada entidade deve ser um dict: {"name": str, "x": float, "y": float, "direction": int, "recipe": str, ...}
+        """
+        for ent_data in entities_list:
+            try:
+                name = ent_data["name"]
+                pos = (ent_data["x"], ent_data["y"])
+                direction = ent_data.get("direction", 0)
+                
+                if "assembling-machine" in name or "furnace" in name or "oil-refinery" in name or "chemical-plant" in name:
+                    ent = AssemblingMachine(name, tile_position=pos, direction=direction)
+                    recipe = ent_data.get("recipe")
+                    if recipe:
+                        try:
+                            ent.recipe = recipe
+                        except:
+                            pass # Fornalhas não aceitam recipe setada
+                elif "splitter" in name:
+                    ent = Splitter(name, tile_position=pos, direction=direction)
+                elif "underground-belt" in name:
+                    ent = UndergroundBelt(name, tile_position=pos, direction=direction)
+                    ent.io_type = ent_data.get("io_type", "input")
+                elif "transport-belt" in name:
+                    ent = TransportBelt(name, tile_position=pos, direction=direction)
+                elif "inserter" in name:
+                    ent = Inserter(name, tile_position=pos, direction=direction)
+                elif "pipe-to-ground" in name:
+                    ent = UndergroundPipe(name, tile_position=pos, direction=direction)
+                elif "pipe" in name:
+                    ent = Pipe(name, tile_position=pos)
+                elif "electric-pole" in name or "substation" in name:
+                    ent = ElectricPole(name, tile_position=pos)
+                else:
+                    # Fallback generico se soubermos a classe ou for simples
+                    from draftsman.entity import Entity
+                    ent = Entity(name, tile_position=pos, direction=direction)
+
+                self.blueprint.entities.append(ent)
+            except Exception as e:
+                print(f"Erro ao adicionar entidade genérica {ent_data.get('name')}: {e}")
+
+        blueprint_dict = self.blueprint.to_dict()
+        return self.blueprint.to_string(), blueprint_dict["blueprint"].get("entities", [])
+
     def generate_blueprint_string(self, layout_data: list, bus_metadata: dict = None, inserters: list = None, belts: list = None, pipes: list = None, poles: list = None, belt_name: str = "transport-belt"):
         """
         Materializa o layout e os barramentos em uma string de Blueprint e retorna também o mapa de entidades.

@@ -1,1 +1,0 @@
-from draftsman.data import entities; print('Yellow:', entities.raw['transport-belt']['speed']); print('Red:', entities.raw['fast-transport-belt']['speed']); print('Express:', entities.raw['express-transport-belt']['speed'])

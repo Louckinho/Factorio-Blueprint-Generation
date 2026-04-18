@@ -40,4 +40,8 @@ class AdvancedModeRequest(BaseModel):
     tech_tier: TechTierSchema = Field(default_factory=TechTierSchema)
     modules: ModulesSchema = Field(default_factory=ModulesSchema)
 
-BlueprintRequestSchema = Union[SimpleModeRequest, AdvancedModeRequest]
+class ADAMRequest(BaseModel):
+    mode: str = Field(default="adam", pattern="^adam$")
+    prompt: str
+
+BlueprintRequestSchema = Union[SimpleModeRequest, AdvancedModeRequest, ADAMRequest]

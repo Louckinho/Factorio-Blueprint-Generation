@@ -1,6 +1,15 @@
-# 📖 Guia Didático: Do Zero ao seu Blueprint
+# ⚙️ Factorio Blueprint Generator (FBG) - AI Powered
 
-Bem-vindo ao **Factorio Blueprint Generator (FBG)**! Este guia foi feito para que você consiga rodar o projeto e gerar sua primeira planta industrial em menos de 5 minutos.
+O FBG é uma plataforma web para geração de blueprints ultra-eficientes do jogo Factorio. O projeto está evoluindo de uma engine procedural baseada em algoritmos clássicos para um sistema neural chamado **Projeto ADAM**, que utiliza LLMs locais (Ollama) para desenhar layouts perfeitos e estéticos.
+
+---
+
+## 🚀 Novidade: Integração com Projeto ADAM (A.I)
+
+O backend agora conta com um **AI-Gateway** pronto para se conectar ao seu modelo ADAM local. 
+- **Entrada Agnóstica:** Peça o que quiser via prompt (Ex: "Fábrica de Ciência Vermelha 30/min").
+- **Geometria via DSL:** A IA retorna uma linguagem geométrica comprimida de tokens (DSL).
+- **Compilação Nativa:** O Django traduz a DSL e usa a biblioteca `factorio-draftsman` para gerar a string oficial `0e...` pronta para o jogo.
 
 ---
 
