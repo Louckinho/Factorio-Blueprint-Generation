@@ -2,7 +2,8 @@ from .solver import RateSolver
 from .draftsman_compiler import DraftsmanCompiler
 from .clustering import Clusterizer
 from .algorithms.bin_packing import MaxRectsPacker
-from .algorithms.pathfinding import AStarRouter
+from .algorithms.routers.belt_router import BeltRouter
+from .algorithms.routers.pipe_router import PipeRouter
 from .bus_designer import BusDesigner
 from .lane_mapper import LaneMapper
 from .overlays.electrical import ElectricalOverlay
@@ -22,6 +23,7 @@ def execute_generation_pipeline(payload: dict):
     
     # 1. Rate Solver (Carrega automaticamente receitas nativas do banco do draftsman)
     solver = RateSolver()
+    solver.oil_recipe = tech_tier.get("oil_recipe", "advanced-oil-processing")
     nodes_requirements = solver.resolve_requirements(target_item, rate, machine_name=machine_name)
     
     # 2. Clustering (Agrupamento Otimizado com Cálculo de Saturação)
@@ -35,30 +37,33 @@ def execute_generation_pipeline(payload: dict):
     bus_metadata = BusDesigner.attach_buses(layout, nodes_requirements)
     mapped_lanes = LaneMapper.multiplex_lanes(layout) # Por enquanto opera no layout original
 
-    # 5. Pathfinding (Roteamento de Esteiras A*)
-    routed_layout = AStarRouter.route_belts(mapped_lanes)
+    # 5. Roteamento de Esteiras
+    inserter_name = tech_tier.get("inserter", "fast-inserter")
+    belt_data = BeltRouter.route(mapped_lanes, belt_name=belt_name, inserter_name=inserter_name)
+    
+    # 6. Roteamento de Canos (Fluid Routing)
+    pipe_data = PipeRouter.route(mapped_lanes, belt_data.get("obstacles", set()))
 
-    # 6. Overlays (Postes, Fluidos, Sinalizadores)
+    # 7. Overlays (Postes, Sinalizadores)
     pole_tier = tech_tier.get("pole", "medium-electric-pole")
     all_poles = ElectricalOverlay.apply(
-        routed_layout["clusters"], 
-        routed_layout.get("obstacles", set()), 
-        extra_consumers=routed_layout.get("inserters", []), # Inclui os braços aqui
+        mapped_lanes, 
+        belt_data.get("obstacles", set()), 
+        extra_consumers=belt_data.get("inserters", []), 
         pole_type=pole_tier
     )
     
-    # Por enquanto as Overlays batem diretamente na array de clusters
-    routed_layout["clusters"] = FluidsOverlay.apply(routed_layout["clusters"])
-    routed_layout["clusters"] = BeaconsOverlay.apply(routed_layout["clusters"])
+    # Beacons Overlay
+    routed_layout = BeaconsOverlay.apply(mapped_lanes)
     
-    # 7. Draftsman Compiler (Gerador Final de Blueprint String)
-    compiler = DraftsmanCompiler(label=f"FBG High-Density {target_item} {rate}/min - v4.0")
+    # 8. Draftsman Compiler (Gerador Final de Blueprint String)
+    compiler = DraftsmanCompiler(label=f"FBG High-Density {target_item} {rate}/min - v4.5")
     blueprint_string, entities = compiler.generate_blueprint_string(
-        layout_data=routed_layout["clusters"], 
+        layout_data=routed_layout, 
         bus_metadata=bus_metadata,
-        inserters=routed_layout.get("inserters", []),
-        belts=routed_layout.get("belts", []),
-        pipes=routed_layout.get("pipes", []),
+        inserters=belt_data.get("inserters", []),
+        belts=belt_data.get("belts", []),
+        pipes=pipe_data.get("pipes", []),
         poles=all_poles
     )
     

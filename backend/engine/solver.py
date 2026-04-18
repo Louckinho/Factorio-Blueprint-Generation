@@ -14,16 +14,13 @@ class RateSolver:
         """
         Calcula a quantidade exata de ingredientes e máquinas necessárias subindo a árvore com DFS.
         """
-        # Obter Velocidade Real da Máquina do banco de dados do Factorio
-        crafting_speed = 1.25 # Fallback
-        if machine_name in entities.raw:
-            crafting_speed = entities.raw[machine_name].get("crafting_speed", 1.25)
-
+        self.default_assembler = machine_name
+        
         # Convert rate to per second
         rate_per_sec = rate_per_minute / 60.0
         
         # Iniciar recursão
-        self._traverse_recipe(target_item, rate_per_sec, crafting_speed)
+        self._traverse_recipe(target_item, rate_per_sec)
 
         # Extrair os nós ordenados (opcionalmente sort topológico, embora Graph já tenha estrutura)
         nodes = []
@@ -35,12 +32,25 @@ class RateSolver:
                 "machines_needed": data.get("machines", 0.0),
                 "is_raw_input": data.get("is_raw", False),
                 "is_fluid": data.get("is_fluid", False),
-                "rate_per_sec": data.get("rate", 0.0)
+                "rate_per_sec": data.get("rate", 0.0),
+                "machine_type": data.get("machine_type", self.default_assembler)
             })
 
         return nodes
 
-    def _traverse_recipe(self, item_name: str, required_rate_per_sec: float, crafting_speed: float, current_path: set = None):
+    def _get_machine_for_category(self, category: str) -> str:
+        if "chemistry" in category:
+            return "chemical-plant"
+        elif "oil" in category:
+            return "oil-refinery"
+        elif "smelting" in category or category == "metallurgy":
+            return "electric-furnace"
+        elif "centrifuging" in category:
+            return "centrifuge"
+        else:
+            return getattr(self, "default_assembler", "assembling-machine-3")
+
+    def _traverse_recipe(self, item_name: str, required_rate_per_sec: float, current_path: set = None):
         if current_path is None:
             current_path = set()
 
@@ -49,7 +59,12 @@ class RateSolver:
             
         current_path.add(item_name)
 
-        if item_name not in self.recipe_data:
+        recipe_key = item_name
+        # Mapeamento para fluidos resultantes de refinamento
+        if recipe_key in ("petroleum-gas", "heavy-oil", "light-oil"):
+            recipe_key = getattr(self, "oil_recipe", "advanced-oil-processing")
+
+        if recipe_key not in self.recipe_data:
             # É um ore cru, fluido base ou item não craftavel (Input Bus)
             if self.graph.has_node(item_name) and 'rate' in self.graph.nodes[item_name]:
                 self.graph.nodes[item_name]['rate'] += required_rate_per_sec
@@ -67,7 +82,7 @@ class RateSolver:
             current_path.remove(item_name)
             return
 
-        recipe = self.recipe_data[item_name]
+        recipe = self.recipe_data[recipe_key]
         
         # Encontra output amount do item alvo
         output_amount = 1.0 # Default fallback
@@ -77,6 +92,13 @@ class RateSolver:
                     output_amount = res["amount"]
                     break
 
+        category = recipe.get("category", "crafting")
+        machine_type = self._get_machine_for_category(category)
+        
+        crafting_speed = 1.0 # Default factorio
+        if machine_type in entities.raw:
+            crafting_speed = entities.raw[machine_type].get("crafting_speed", 1.0)
+            
         energy_required = recipe.get("energy_required", 1.0)
         
         # Taxa de base de 1 máquina
@@ -96,8 +118,9 @@ class RateSolver:
             self.graph.nodes[item_name]['machines'] += machines_exact
             self.graph.nodes[item_name]['is_raw'] = False
             self.graph.nodes[item_name]['is_fluid'] = is_fluid
+            self.graph.nodes[item_name]['machine_type'] = machine_type
         else:
-            self.graph.add_node(item_name, machines=machines_exact, is_raw=False, rate=required_rate_per_sec, is_fluid=is_fluid)
+            self.graph.add_node(item_name, machines=machines_exact, is_raw=False, rate=required_rate_per_sec, is_fluid=is_fluid, machine_type=machine_type)
 
         # Traverse ingredientes
         for ingredient in recipe.get("ingredients", []):
@@ -112,6 +135,6 @@ class RateSolver:
             self.graph.add_edge(ing_name, item_name, weight=ing_rate_per_sec)
 
             # Recursão descendente
-            self._traverse_recipe(ing_name, ing_rate_per_sec, crafting_speed, current_path)
+            self._traverse_recipe(ing_name, ing_rate_per_sec, current_path)
 
         current_path.remove(item_name)

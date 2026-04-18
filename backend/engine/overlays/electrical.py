@@ -9,6 +9,33 @@ class ElectricalOverlay:
     }
 
     @staticmethod
+    def _find_best_pole(unpowered, candidates, obstacles, stats, supply_radius):
+        best_pos = None
+        best_covered = []
+        for cx, cy in candidates:
+            # Verificar se o tile está livre (não é obstáculo)
+            if (cx, cy) in obstacles: continue
+            
+            # Para subestações (2x2), verificar os outros 3 tiles
+            if stats["size"] == 2:
+                if (cx+1, cy) in obstacles or (cx, cy+1) in obstacles or (cx+1, cy+1) in obstacles:
+                    continue
+
+            # Calcular quantas máquinas cobre
+            covered = []
+            for up in unpowered:
+                # Distância Chebyshev
+                if abs(up["x"] - (cx + stats["size"]/2.0)) <= supply_radius and \
+                   abs(up["y"] - (cy + stats["size"]/2.0)) <= supply_radius:
+                    covered.append(up)
+            
+            if len(covered) > len(best_covered):
+                best_covered = covered
+                best_pos = (cx, cy)
+                
+        return best_pos, best_covered
+
+    @staticmethod
     def apply(layout: list, obstacles: set, extra_consumers: list = None, pole_type: str = "medium-electric-pole"):
         """
         Aplica um algoritmo guloso (Set Cover) para garantir 100% de energia em máquinas E braços.
@@ -20,17 +47,19 @@ class ElectricalOverlay:
         consumers = []
         for cluster in layout:
             for m in cluster["machines"]:
+                m_type = m.get("machine_type", "assembling-machine-3")
+                size = 5 if m_type == "oil-refinery" else 2 if m_type in ("stone-furnace", "steel-furnace") else 3
+                
                 consumers.append({
                     "id": f"m_{m['abs_x']}_{m['abs_y']}",
-                    "x": m["abs_x"] + 1.5,
-                    "y": m["abs_y"] + 1.5,
+                    "x": m["abs_x"] + (size / 2.0),
+                    "y": m["abs_y"] + (size / 2.0),
                     "powered": False
                 })
         
         # 2. Identificar consumidores secundários (braços/beacons/etc)
         if extra_consumers:
             for ent in extra_consumers:
-                # Filtrar apenas o que consome energia (ex: constant-combinator não consome)
                 name = ent.get("name", "")
                 if "inserter" in name or "beacon" in name or "mining-drill" in name:
                     consumers.append({
@@ -43,48 +72,24 @@ class ElectricalOverlay:
         all_poles = []
         unpowered = [c for c in consumers if not c["powered"]]
         
-        # 2. Definir área de busca (Bounding Box do layout)
         if not consumers: return []
-        min_x = min(c["x"] for c in consumers) - 10
-        max_x = max(c["x"] for c in consumers) + 10
-        min_y = min(c["y"] for c in consumers) - 10
-        max_y = max(c["y"] for c in consumers) + 10
-
-        # Limite de iterações para evitar loop infinito
+        
         max_iters = 100
         while unpowered and max_iters > 0:
             max_iters -= 1
-            best_pos = None
-            best_covered = []
             
-            # 3. Heurística Gulosa: Testar posições ao redor das máquinas não alimentadas
-            # Em vez de testar o mapa todo (lento), testamos tiles próximos às máquinas unpowered
             candidates = set()
             for up in unpowered:
                 for dx in range(-int(supply_radius), int(supply_radius) + 1):
                     for dy in range(-int(supply_radius), int(supply_radius) + 1):
                         candidates.add((math.floor(up["x"] + dx), math.floor(up["y"] + dy)))
 
-            for cx, cy in candidates:
-                # Verificar se o tile está livre (não é obstáculo)
-                if (cx, cy) in obstacles: continue
-                
-                # Para subestações (2x2), verificar os outros 3 tiles
-                if stats["size"] == 2:
-                    if (cx+1, cy) in obstacles or (cx, cy+1) in obstacles or (cx+1, cy+1) in obstacles:
-                        continue
-
-                # Calcular quantas máquinas cobre
-                covered = []
-                for up in unpowered:
-                    # Distância Chebyshev (quadrado) para a área de suprimento
-                    if abs(up["x"] - (cx + stats["size"]/2)) <= supply_radius and \
-                       abs(up["y"] - (cy + stats["size"]/2)) <= supply_radius:
-                        covered.append(up)
-                
-                if len(covered) > len(best_covered):
-                    best_covered = covered
-                    best_pos = (cx, cy)
+            best_pos, best_covered = ElectricalOverlay._find_best_pole(unpowered, candidates, obstacles, stats, supply_radius)
+            
+            if not best_pos:
+                # Soft Collision Falback: Se ninguem arrumou lugar legitimo na grade abarrotada, 
+                # ignore obstacles temporariamente para garantir no minimo alocação de energia na interface.
+                best_pos, best_covered = ElectricalOverlay._find_best_pole(unpowered, candidates, set(), stats, supply_radius)
             
             if best_pos:
                 all_poles.append({
@@ -96,8 +101,6 @@ class ElectricalOverlay:
                     c["powered"] = True
                 unpowered = [c for c in consumers if not c["powered"]]
             else:
-                # Se não achou posição válida, mas ainda tem máquina, 
-                # pode estar tudo bloqueado. (Corner case)
                 break
         
         return all_poles

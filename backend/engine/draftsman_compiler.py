@@ -25,6 +25,17 @@ class DraftsmanCompiler:
                         ent_name = "assembling-machine-3"
                         
                     ent = AssemblingMachine(ent_name, tile_position=(machine["abs_x"], machine["abs_y"]))
+                    
+                    # Definir a Receita. Factorio requer receita explícita para fábricas e refinarias.
+                    recipe_name = machine["item"]
+                    if recipe_name in ("petroleum-gas", "heavy-oil", "light-oil"):
+                        recipe_name = "advanced-oil-processing"
+                        
+                    try:
+                        ent.recipe = recipe_name
+                    except:
+                        pass # Fornalhas (furnaces), por exemplo, assam o que recebem e não aceitam setar recipe.
+
                     self.blueprint.entities.append(ent)
                 except Exception as e:
                     print(f"Erro ao adicionar máquina {machine['item']}: {e}")

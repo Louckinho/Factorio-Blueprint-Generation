@@ -1,4 +1,5 @@
-import requests
+import urllib.request
+import json
 
 payload = {
     "mode": "simple",
@@ -11,10 +12,11 @@ payload = {
     "tech_tier": {
       "belt": "express-transport-belt",
       "inserter": "fast-inserter",
-      "machine": "chemical-plant"
+      "machine": "assembling-machine-3",
+      "oil_recipe": "advanced-oil-processing"
     },
     "modules": {
-      "beaconized": True,
+      "beaconized": False,
       "beacon_entity": "beacon",
       "machine_modules": ["productivity-module-3"],
       "beacon_modules": ["speed-module-3"]
@@ -22,8 +24,21 @@ payload = {
 }
 
 try:
-    response = requests.post("http://127.0.0.1:8000/api/generate/", json=payload)
-    print("Status:", response.status_code)
-    print("JSON:", response.json())
+    req = urllib.request.Request(
+        "http://127.0.0.1:8000/api/generate/",
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+    with urllib.request.urlopen(req) as response:
+        data = json.loads(response.read().decode('utf-8'))
+        
+        # Salva o resultado
+        bp_string = data.get("blueprint_string", "")
+        with open("meu_blueprint.txt", "w") as f:
+            f.write(bp_string)
+            
+        print("Sucesso! A Blueprint String gigante foi salva em 'meu_blueprint.txt'!")
+        print("Basta copiar o miolo dela e colar no Factorio!")
+        
 except Exception as e:
     print("Connection error:", str(e))

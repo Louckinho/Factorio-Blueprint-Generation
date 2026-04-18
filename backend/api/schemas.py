@@ -9,6 +9,7 @@ class TechTierSchema(BaseModel):
     belt: str = "express-transport-belt"
     inserter: str = "fast-inserter"
     machine: str = "assembling-machine-3"
+    oil_recipe: str = "advanced-oil-processing"
 
 class ModulesSchema(BaseModel):
     beaconized: bool = False
