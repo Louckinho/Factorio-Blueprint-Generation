@@ -9,6 +9,8 @@ class TechTierSchema(BaseModel):
     belt: str = "express-transport-belt"
     inserter: str = "fast-inserter"
     machine: str = "assembling-machine-3"
+    furnace: str = "electric-furnace"
+    pole: str = "medium-electric-pole"
     oil_recipe: str = "advanced-oil-processing"
 
 class ModulesSchema(BaseModel):

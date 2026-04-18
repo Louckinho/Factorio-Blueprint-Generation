@@ -7,10 +7,11 @@ class DraftsmanCompiler:
         self.blueprint = Blueprint()
         self.blueprint.label = label
 
-    def generate_blueprint_string(self, layout_data: list, bus_metadata: dict = None, inserters: list = None, belts: list = None, pipes: list = None, poles: list = None):
+    def generate_blueprint_string(self, layout_data: list, bus_metadata: dict = None, inserters: list = None, belts: list = None, pipes: list = None, poles: list = None, belt_name: str = "transport-belt"):
         """
         Materializa o layout e os barramentos em uma string de Blueprint e retorna também o mapa de entidades.
         """
+        self.belt_name = belt_name
         raw_entities = []
         # 1. Adicionar máquinas do layout
         for cluster in layout_data:
@@ -123,8 +124,8 @@ class DraftsmanCompiler:
 
         # Adicionar uma linha de cintas (visualização do barramento)
         # Força a cinta a apontar para o centro do layout se for input, ou para fora se for output
-        belt_name = "express-transport-belt"
+        b_name = getattr(self, 'belt_name', 'transport-belt')
         for y in range(bus_info["min_y"], bus_info["max_y"] + 3, 3):
             # Apenas um guia visual por enquanto
-            belt = TransportBelt(belt_name, tile_position=(bus_info["x"], y))
+            belt = TransportBelt(b_name, tile_position=(bus_info["x"], y))
             self.blueprint.entities.append(belt)

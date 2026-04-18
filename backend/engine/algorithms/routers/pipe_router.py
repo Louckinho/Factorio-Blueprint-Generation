@@ -21,8 +21,21 @@ class PipeRouter:
             for machine in cluster["machines"]:
                 mx, my = machine["abs_x"], machine["abs_y"]
                 m_type = machine.get("machine_type", "assembling-machine-3")
+                recipe_name = machine.get("item")
                 size = 5 if m_type == "oil-refinery" else 2 if m_type in ("stone-furnace", "steel-furnace") else 3
                 
+                # Checar se a receita tem fluidos
+                from draftsman.data import recipes
+                recipe_data = recipes.raw.get(recipe_name, {})
+                uses_fluid = False
+                for ing in recipe_data.get("ingredients", []):
+                    if ing.get("type") == "fluid": uses_fluid = True
+                for res in recipe_data.get("results", []):
+                    if res.get("type") == "fluid": uses_fluid = True
+                
+                if not uses_fluid and m_type != "oil-refinery" and m_type != "chemical-plant":
+                    continue
+
                 if m_type in entities.raw and "fluid_boxes" in entities.raw[m_type]:
                     fluid_boxes = entities.raw[m_type]["fluid_boxes"]
                     for box in fluid_boxes:
@@ -48,16 +61,17 @@ class PipeRouter:
                             if is_at_border: grid.obstacles.add(start)
                             
                             if path:
-                                # Priorizar Underground Pipes (máximo 10 de gap)
+                                # Priorizar Underground Pipes (máximo 10 de gap) só se tiver algo no caminho (por simplicidade, usando tubo normal a menos que distante)
                                 if len(path) > 2:
                                     first = path[0]
                                     last = path[-1]
                                     is_straight = all(t[0] == first[0] for t in path) or all(t[1] == first[1] for t in path)
                                     dist = len(path)
                                     
-                                    if is_straight and dist <= 11:
+                                    if is_straight and dist > 2:
                                         all_pipes.append({"name": "pipe-to-ground", "x": first[0], "y": first[1], "direction": 4 if first[0] < last[0] else 12})
                                         all_pipes.append({"name": "pipe-to-ground", "x": last[0], "y": last[1], "direction": 12 if first[0] < last[0] else 4})
+
                                     else:
                                         for tile in path:
                                             all_pipes.append({"name": "pipe", "x": tile[0], "y": tile[1]})

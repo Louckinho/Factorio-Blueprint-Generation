@@ -10,11 +10,12 @@ class RateSolver:
         self.recipe_data = recipes.raw
         self.graph = nx.DiGraph()
 
-    def resolve_requirements(self, target_item: str, rate_per_minute: float, machine_name: str = "assembling-machine-3"):
+    def resolve_requirements(self, target_item: str, rate_per_minute: float, machine_name: str = "assembling-machine-3", furnace_name: str = "electric-furnace"):
         """
         Calcula a quantidade exata de ingredientes e máquinas necessárias subindo a árvore com DFS.
         """
         self.default_assembler = machine_name
+        self.default_furnace = furnace_name
         
         # Convert rate to per second
         rate_per_sec = rate_per_minute / 60.0
@@ -22,11 +23,16 @@ class RateSolver:
         # Iniciar recursão
         self._traverse_recipe(target_item, rate_per_sec)
 
-        # Extrair os nós ordenados (opcionalmente sort topológico, embora Graph já tenha estrutura)
+        # Extrair os nós ordenados por topologia estrutural (Input -> Furnaces -> Assemblers)
         nodes = []
-        for node in self.graph.nodes(data=True):
-            item_name = node[0]
-            data = node[1]
+        try:
+            topo_nodes = list(nx.topological_sort(self.graph))
+        except nx.NetworkXUnfeasible:
+            # Em caso de ciclo, fallback
+            topo_nodes = list(self.graph.nodes())
+            
+        for item_name in topo_nodes:
+            data = self.graph.nodes[item_name]
             nodes.append({
                 "item": item_name,
                 "machines_needed": data.get("machines", 0.0),
@@ -44,7 +50,7 @@ class RateSolver:
         elif "oil" in category:
             return "oil-refinery"
         elif "smelting" in category or category == "metallurgy":
-            return "electric-furnace"
+            return getattr(self, "default_furnace", "electric-furnace")
         elif "centrifuging" in category:
             return "centrifuge"
         else:

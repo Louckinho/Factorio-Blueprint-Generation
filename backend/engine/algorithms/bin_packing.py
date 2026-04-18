@@ -26,8 +26,8 @@ class MaxRectsPacker:
         Heurística 2D Bin Packing - Bottom Left Rule (MaxRects).
         Retorna o layout final com as Posições ABSOLUTAS das máquinas preenchidas.
         """
-        # Ordenamos iterativamente pelos maiores blocos primeiro (Area descendente)
-        clusters.sort(key=lambda c: (c["width"] + self.MARGIN) * (c["height"] + self.MARGIN), reverse=True)
+        # Removido ordenação por área para agora respeitar a ordem Topológica que vem do solver
+        # clusters.sort(key=lambda c: (c["width"] + self.MARGIN) * (c["height"] + self.MARGIN), reverse=True)
 
         layout = []
 

@@ -80,15 +80,36 @@ class ElectricalOverlay:
             
             candidates = set()
             for up in unpowered:
+                # Gerar candidatos ao redor de máquinas não energizadas
                 for dx in range(-int(supply_radius), int(supply_radius) + 1):
                     for dy in range(-int(supply_radius), int(supply_radius) + 1):
-                        candidates.add((math.floor(up["x"] + dx), math.floor(up["y"] + dy)))
+                        cand_x, cand_y = math.floor(up["x"] + dx), math.floor(up["y"] + dy)
+                        
+                        # Se já temos postes, o novo poste DEVE estar ao alcance de pelo menos um existente
+                        if all_poles:
+                            is_reachable = False
+                            for p in all_poles:
+                                dist = math.sqrt((cand_x - p["x"])**2 + (cand_y - p["y"])**2)
+                                if dist <= stats["wire"]:
+                                    is_reachable = True
+                                    break
+                            if not is_reachable:
+                                continue
+                                
+                        candidates.add((cand_x, cand_y))
+
+            # Se não houver candidatos conectados, mas ainda houver máquinas sem energia, 
+            # permitimos um novo ponto inicial (uma nova "ilha" de energia, que o jogador conectará manualmente)
+            if not candidates and unpowered:
+                for up in unpowered:
+                    for dx in range(-int(supply_radius), int(supply_radius) + 1):
+                        for dy in range(-int(supply_radius), int(supply_radius) + 1):
+                            candidates.add((math.floor(up["x"] + dx), math.floor(up["y"] + dy)))
 
             best_pos, best_covered = ElectricalOverlay._find_best_pole(unpowered, candidates, obstacles, stats, supply_radius)
             
-            if not best_pos:
-                # Soft Collision Falback: Se ninguem arrumou lugar legitimo na grade abarrotada, 
-                # ignore obstacles temporariamente para garantir no minimo alocação de energia na interface.
+            if not best_pos and candidates:
+                # Tenta novamente ignorando obstáculos se necessário
                 best_pos, best_covered = ElectricalOverlay._find_best_pole(unpowered, candidates, set(), stats, supply_radius)
             
             if best_pos:

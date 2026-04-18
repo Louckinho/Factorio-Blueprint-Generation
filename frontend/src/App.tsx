@@ -17,6 +17,7 @@ function App() {
   const [beltTier, setBeltTier] = useState('express-transport-belt')
   const [inserterTier, setInserterTier] = useState('fast-inserter')
   const [machineTier, setMachineTier] = useState('assembling-machine-3')
+  const [furnaceTier, setFurnaceTier] = useState('electric-furnace')
   const [poleTier, setPoleTier] = useState('medium-electric-pole')
   
   const [allItems, setAllItems] = useState<any[]>([])
@@ -53,6 +54,12 @@ function App() {
     { id: 'assembling-machine-2', name: 'Assembling Machine 2' },
     { id: 'assembling-machine-3', name: 'Assembling Machine 3' },
     { id: 'chemical-plant', name: 'Chemical Plant' },
+  ]
+  
+  const FURNACES = [
+    { id: 'stone-furnace', name: 'Stone Furnace (2x2)' },
+    { id: 'steel-furnace', name: 'Steel Furnace (2x2)' },
+    { id: 'electric-furnace', name: 'Electric Furnace (3x3)' },
   ]
 
   const POLES = [
@@ -170,12 +177,13 @@ function App() {
         tileable_block: true,
         max_machines_per_block: 15
       },
-      tech_tier: {
-        belt: beltTier,
-        inserter: inserterTier,
-        machine: machineTier,
-        pole: poleTier
-      },
+        tech_tier: {
+          belt: beltTier,
+          inserter: inserterTier,
+          machine: machineTier,
+          furnace: furnaceTier,
+          pole: poleTier
+        },
       modules: {
         beaconized: true,
         beacon_entity: "beacon",
@@ -344,6 +352,13 @@ function App() {
                 <label>Machine Standard:</label>
                 <select value={machineTier} onChange={(e) => setMachineTier(e.target.value)} disabled={loading}>
                   {MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Smelting Standard:</label>
+                <select value={furnaceTier} onChange={(e) => setFurnaceTier(e.target.value)} disabled={loading}>
+                  {FURNACES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
 

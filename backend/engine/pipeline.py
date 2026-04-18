@@ -20,14 +20,17 @@ def execute_generation_pipeline(payload: dict):
     rate = payload.get("rate_per_minute", 60)
     tech_tier = payload.get("tech_tier", {})
     machine_name = tech_tier.get("machine", "assembling-machine-3")
+    furnace_name = tech_tier.get("furnace", "electric-furnace")
     
     # 1. Rate Solver (Carrega automaticamente receitas nativas do banco do draftsman)
     solver = RateSolver()
     solver.oil_recipe = tech_tier.get("oil_recipe", "advanced-oil-processing")
-    nodes_requirements = solver.resolve_requirements(target_item, rate, machine_name=machine_name)
+    nodes_requirements = solver.resolve_requirements(target_item, rate, machine_name=machine_name, furnace_name=furnace_name)
     
     # 2. Clustering (Agrupamento Otimizado com Cálculo de Saturação)
     belt_name = tech_tier.get("belt", "express-transport-belt")
+    # Nota: O Clusterizer usa o machine_name padrão se o nó não especificar um tipo.
+    # Como o RateSolver já atribuiu o tipo de máquina correto ao nó, o Clusterizer respeitará isso.
     clusters = Clusterizer.group(nodes_requirements, machine_name=machine_name, belt_name=belt_name)
     
     # 3. Bin Packing (Geometria 2D MaxRects)
@@ -57,14 +60,15 @@ def execute_generation_pipeline(payload: dict):
     routed_layout = BeaconsOverlay.apply(mapped_lanes)
     
     # 8. Draftsman Compiler (Gerador Final de Blueprint String)
-    compiler = DraftsmanCompiler(label=f"FBG High-Density {target_item} {rate}/min - v4.5")
+    compiler = DraftsmanCompiler(label=f"FBG High-Density {target_item} {rate}/min - v5.0")
     blueprint_string, entities = compiler.generate_blueprint_string(
         layout_data=routed_layout, 
         bus_metadata=bus_metadata,
         inserters=belt_data.get("inserters", []),
         belts=belt_data.get("belts", []),
         pipes=pipe_data.get("pipes", []),
-        poles=all_poles
+        poles=all_poles,
+        belt_name=belt_name
     )
     
     return blueprint_string, entities
