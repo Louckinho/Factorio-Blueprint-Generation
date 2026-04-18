@@ -10,13 +10,13 @@ A arquitetura do **Factorio Blueprint Generator** é totalmente desacoplada, uti
 2.  **API Request:** O Frontend envia um payload JSON para o `/api/generate/`.
 3.  **Validation:** O Django usa **Pydantic** para validar se o item e a tecnologia (Cintas, Inserters) são compatíveis.
 4.  **Pipeline Execute:** O `engine/pipeline.py` orquestra a sequência:
-    - **Solver:** Calcula a matemática de produção.
-    - **Clustering:** Agrupa máquinas.
+    - **Solver (Topological Sort):** Calcula a matemática de produção e estrutura a dependência estrita (`networkx`) para Fornos serem plotados antes de Montadoras.
+    - **Clustering:** Agrupa máquinas em Colunas (Lanes Inteligentes) baseando-se na densidade de Flow.
     - **Bin Packing:** Define o layout 2D.
-    - **Bus Designer:** Posiciona os barramentos e combinadores.
-    - **Pathfinding (A\*):** Traça as esteiras e aloca os Inserters.
+    - **Bus Designer:** Posiciona os barramentos de suprimentos de Tier apropriados (Tiers viajam o pipeline todo sem strings chumbadas).
+    - **Pathfinding (A\*):** Usa algoritmos `routers` para tapar `Lane` único e traçar esteiras sem overhead e espaguetes.
 5.  **Draftsman Compiler:** Transforma o layout em uma **Blueprint String** e um **Mapa de Entidades**.
-6.  **Visualization Render:** O React recebe a planta e desenha o minimapa via CSS Absoluto.
+6.  **Integração com LLM Artificial (ROADMAP):** Consulta programada de APIs estritas e datasets no arquivo [PROJETO-ADAM-FACTORIO.md](./PROJETO-ADAM-FACTORIO.md).
 
 ---
 

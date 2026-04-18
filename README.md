@@ -71,19 +71,19 @@ No site, use a nova interface premium:
 O core do **FBG v4.5** é dividido em módulos independentes (Separation of Concerns). Se você quiser modificar algo, aqui está o mapa:
 
 ### 1. O Pipeline Principal (`backend/engine/pipeline.py`)
-É aqui que a mágica é coordenada. Ele chama os componentes na ordem: Solver -> Clustering -> Packing -> Routing -> Polishing. Se quiser adicionar uma nova etapa global, comece por aqui.
+É aqui que a mágica é coordenada. Ele chama os componentes na ordem: Solver (Topológico) -> Clustering -> Packing -> Routing -> Polishing. Se quiser adicionar uma nova etapa global, comece por aqui. A inteligência de ordem (Fornos antes de Montadoras) é garantida no RateSolver usando `networkx`.
 
 ### 2. Algoritmos de Roteamento (A Pasta `routers/`)
 Agora o roteamento não é mais um arquivo gigante. Ele está dividido:
-- **`belt_router.py`**: Aqui reside a inteligência das **Esteiras** e **Inserters**. Se os braços estiverem pegando itens do lado errado ou as esteiras estiverem ziguezagueando muito, ajuste os pesos (penalidades) e a lógica de margem aqui.
-- **`pipe_router.py`**: Cuida exclusivamente dos **Canos** e fluidos. Se quiser melhorar como os canos saltam por cima das esteiras, este é o lugar.
-- **`pathfinding.py`**: Contém o mapa de grid geral (`GridMap`) e o algoritmo **A*** puro. Raramente precisa ser mexido, a menos que queira mudar a base matemática do sistema.
+- **`belt_router.py`**: Aqui reside a inteligência das **Esteiras** e **Inserters**. As máquinas são alocadas em "Lanes" limpas por coluna para evitar espaguete e balanceadas para evitar super-lotação num único belt.
+- **`pipe_router.py`**: Cuida exclusivamente dos **Canos** e fluidos, garantindo varredura real nas receitas para evitar canos vazios.
+- **`pathfinding.py`**: Contém o mapa de grid geral (`GridMap`) e o algoritmo **A*** puro. 
 
-### 3. Lógica de Receitas e Máquinas (`backend/engine/solver.py`)
-Se o sistema estiver calculando errado a quantidade de itens ou não reconhecendo uma máquina nova do jogo, o `RateSolver` é o responsável por consultar o banco de dados do Factorio (via Draftsman).
+### 3. Lógica Astronômica e Inteligência Artificial Avançada
+Se perceber que as heurísticas e o pathfinding puro não são suficientes, consulte o arquivo oficial de estratégia de Inteligência Artificial: **[PROJETO-ADAM-FACTORIO.md](./PROJETO-ADAM-FACTORIO.md)**. O repositório atual foi planejado e concebido para servir ativamente de Compilador Python (Draftsman) para inputs preditivos de IAs treinadas locais.
 
 ### 4. Compilação Visual (`backend/engine/draftsman_compiler.py`)
-Este arquivo transforma as coordenadas matemáticas em objetos reais do jogo. Se as máquinas nascerem sem a "receita" (recipe) setada, ou se os braços estiverem apontando para o lado oposto do visual, ajuste a transposição de dados aqui.
+Este arquivo transforma as coordenadas matemáticas em objetos reais do jogo. As **Tiers** viajam limpas pelo backend, garantindo que se o formulário pedir amarelo, você consiga esteiras amarelas. Sem gambiarras no código.
 
 ### 5. Frontend (React + Vite)
 Localizado na pasta `/frontend`. Usa **Vanilla CSS** customizado para uma estética "Premium Dark Mode". Um sistema inteligente de mapeamento de IDs resolve automaticamente os ícones para receitas complexas (como reciclagem).
