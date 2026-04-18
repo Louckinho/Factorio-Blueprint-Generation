@@ -37,12 +37,13 @@ npm run dev
 
 ## 🏭 Passo 2: Gerando sua Primeira Fábrica
 
-No site, siga estas etapas:
+No site, use a nova interface premium:
 
-1.  **Autocomplete de Itens:** Clique no campo "Target Item" e comece a digitar (ex: `Green Circuit` ou `Plastic`). A lista dinâmica filtrará os 650+ itens do jogo.
-2.  **Taxa de Produção:** Defina quantos itens por minuto você deseja (ex: `60`).
-3.  **Tecnologia:** Escolha se quer usar Cintas Azuis, Amarelas ou Vermelhas. O sistema calculará a velocidade real das máquinas.
-4.  **Botão Mágico:** Clique em **"GENERATE BLUEPRINT"**.
+1.  **Sidebar de Itens:** Navegue pela barra lateral esquerda para explorar os itens por categoria (Logística, Produção, Energia, etc.). Use o campo de busca para encontrar itens instantaneamente.
+2.  **Seleção Inteligente:** Ao selecionar um item, ele aparecerá no painel central com seu ícone e ID formatado.
+3.  **Taxa de Produção:** Defina quantos itens por minuto você deseja (ex: `60`).
+4.  **Configuração de Esteiras:** Escolha entre Cintas Amarelas, Vermelhas ou Azuis.
+5.  **Botão Mágico:** Clique em **"GENERATE BLUEPRINT"**.
 
 ---
 
@@ -60,7 +61,7 @@ No site, siga estas etapas:
 
 ## 📝 Dicas de Expert (Pro-Tips)
 - **Barramentos:** O sistema cria um "Input Bus" à esquerda com combinadores que dizem exatamente quanto material você precisa injetar.
-- **Fluidos:** Em receitas químicas (como Plástico), o sistema usa **Canos Subterrâneos** via `PipeRouter` para manter o layout limpo.
+- **Ícones Locais:** O projeto agora conta com um sistema de **Cache de Assets**. Mais de 500 ícones do Factorio são servidos localmente para garantir performance e funcionamento offline.
 - **Tiers:** Você pode trocar entre esteiras amarelas, vermelhas ou azuis no painel; o engine ajustará todos os componentes (splitters, undergrounds) automaticamente.
 
 ---
@@ -85,7 +86,7 @@ Se o sistema estiver calculando errado a quantidade de itens ou não reconhecend
 Este arquivo transforma as coordenadas matemáticas em objetos reais do jogo. Se as máquinas nascerem sem a "receita" (recipe) setada, ou se os braços estiverem apontando para o lado oposto do visual, ajuste a transposição de dados aqui.
 
 ### 5. Frontend (React + Vite)
-Localizado na pasta `/frontend`. Usa Tailwind CSS para o estilo premium. A comunicação com o backend é feita via `fetch` para o endpoint `/api/generate/`.
+Localizado na pasta `/frontend`. Usa **Vanilla CSS** customizado para uma estética "Premium Dark Mode". Um sistema inteligente de mapeamento de IDs resolve automaticamente os ícones para receitas complexas (como reciclagem).
 
 ---
 

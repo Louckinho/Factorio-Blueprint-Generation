@@ -1,5 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import './App.css'
+
+// Categories for Factorio items
+const CATEGORIES = [
+  { id: 'logistics', name: 'Logistics', icon: '📦', keywords: ['belt', 'underground', 'splitter', 'chest', 'pipe', 'pump', 'tank', 'robot', 'port', 'train', 'rail', 'station', 'loader', 'inserter'] },
+  { id: 'production', name: 'Production', icon: '🏭', keywords: ['machine', 'furnace', 'miner', 'pumpjack', 'beacon', 'module', 'lab', 'drill'] },
+  { id: 'energy', name: 'Energy', icon: '⚡', keywords: ['pole', 'substation', 'solar', 'boiler', 'steam', 'turbine', 'reactor', 'accumulator'] },
+  { id: 'resources', name: 'Resources', icon: '💎', keywords: ['plate', 'steel', 'plastic', 'sulfur', 'battery', 'carbon', 'coal', 'ore', 'stone', 'brick', 'wood'] },
+  { id: 'military', name: 'Military', icon: '🛡️', keywords: ['wall', 'gate', 'turret', 'radar', 'artillery', 'ammo', 'rocket', 'tank-cannon', 'gun', 'capsule'] },
+  { id: 'intermediate', name: 'Intermediates', icon: '🔧', keywords: ['circuit', 'unit', 'pack', 'rocket-part', 'satellite', 'fuel', 'barrel', 'gear', 'stick'] },
+]
 
 function App() {
   const [targetItem, setTargetItem] = useState('electronic-circuit')
@@ -11,28 +21,20 @@ function App() {
   
   const [allItems, setAllItems] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [showDropdown, setShowDropdown] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
+    'logistics': true,
+    'production': true,
+    'energy': true,
+    'resources': true,
+    'military': true,
+    'intermediate': true,
+    'other': true
+  })
 
   const [responseStatus, setResponseStatus] = useState<string | null>(null)
   const [blueprint, setBlueprint] = useState<string | null>(null)
   const [entities, setEntities] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-
-  const ITEMS = [
-    { id: 'electronic-circuit', name: 'Electronic Circuit (Green)' },
-    { id: 'advanced-circuit', name: 'Advanced Circuit (Red)' },
-    { id: 'processing-unit', name: 'Processing Unit (Blue)' },
-    { id: 'plastic-bar', name: 'Plastic Bar' },
-    { id: 'speed-module-3', name: 'Speed Module 3' },
-    { id: 'productivity-module-3', name: 'Productivity Module 3' },
-    { id: 'low-density-structure', name: 'Low Density Structure' },
-    { id: 'rocket-control-unit', name: 'Rocket Control Unit' },
-    { id: 'rocket-fuel', name: 'Rocket Fuel' },
-    { id: 'iron-plate', name: 'Iron Plate' },
-    { id: 'copper-plate', name: 'Copper Plate' },
-    { id: 'steel-plate', name: 'Steel Plate' },
-  ]
 
   const BELTS = [
     { id: 'transport-belt', name: 'Yellow (Standard)' },
@@ -59,9 +61,19 @@ function App() {
     { id: 'substation', name: 'Substation (High-Tech)' },
   ]
 
-  const getWikiIconUrl = (itemName: string) => {
+  const getIconUrl = (itemId: string) => {
+    if (!itemId) return "";
+    return `/icons/${itemId}.png`;
+  };
+
+  const getBaseIconUrl = (itemId: string) => {
+    if (!itemId) return "";
+    const baseId = itemId.replace(/-recycling$|-crushing$|-processing$|-separation$|-neutralisation$|-cracking$|-liquefaction$|-cleaning$/g, '');
+    return `/icons/${baseId}.png`;
+  };
+
+  const getWikiFallbackUrl = (itemName: string) => {
     if (!itemName) return "";
-    // Transforma 'express-transport-belt' em 'Express_transport_belt.png'
     const formatted = itemName
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -69,7 +81,6 @@ function App() {
     return `https://wiki.factorio.com/images/${formatted}.png`;
   };
 
-  // Carga inicial dos itens da biblioteca Draftsman
   useEffect(() => {
     const fetchItems = async () => {
       try {
@@ -83,26 +94,67 @@ function App() {
     fetchItems();
   }, []);
 
-  // Fechar dropdown ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-      }
+  const categorizedItems = useMemo(() => {
+    const groups: Record<string, any[]> = {
+      'logistics': [],
+      'production': [],
+      'energy': [],
+      'resources': [],
+      'military': [],
+      'intermediate': [],
+      'other': []
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
-  const filteredItems = useMemo(() => {
-    if (!searchQuery) return allItems.slice(0, 50); // Mostra 50 primeiros por padrão
-    return allItems.filter(item => 
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 50);
-  }, [searchQuery, allItems]);
+    // Filter out unwanted items (recycling, admin, technical, duplicates)
+    const filtered = allItems.filter(item => {
+      const id = item.id;
+      
+      // Exclude technical/sandbox items
+      if (id.startsWith('infinity-') || id.startsWith('editor-') || id.includes('parameter-') || id.includes('planner') || id.includes('blueprint') || id.startsWith('selection-tool')) return false;
+      if (id.includes('simple-entity') || id.includes('dummy-') || id.includes('loader')) return false;
+      
+      // Exclude secondary recipe variants (recycling, etc)
+      if (id.endsWith('-recycling') || id.includes('-reprocessing') || id.includes('-crushing')) return false;
+      
+      // Applied search query
+      if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase()) && !id.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      return true;
+    });
 
-  const selectedItemName = allItems.find(i => i.id === targetItem)?.name || targetItem;
+    filtered.forEach(item => {
+      let found = false;
+      for (const cat of CATEGORIES) {
+        if (cat.keywords.some(kw => item.id.includes(kw))) {
+          groups[cat.id].push(item);
+          found = true;
+          break;
+        }
+      }
+      if (!found) groups['other'].push(item);
+    });
+
+    return groups;
+  }, [allItems, searchQuery]);
+
+  const selectedItem = useMemo(() => {
+    const item = allItems.find(i => i.id === targetItem);
+    if (item) return item;
+    
+    // Fallback formatting if item not found in list yet
+    const displayName = targetItem
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+      
+    return { id: targetItem, name: displayName };
+  }, [targetItem, allItems]);
+
+  const toggleCategory = (id: string) => {
+    setOpenCategories(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const handleGenerate = async () => {
     setLoading(true)
@@ -135,9 +187,7 @@ function App() {
     try {
       const res = await fetch('http://127.0.0.1:8000/api/generate/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
@@ -159,172 +209,233 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>Factorio Blueprint Generator</h1>
-        <span className="version-badge">v4.0 High-Density Edition</span>
-      </header>
-
-      <main className="main-content">
-        <section className="config-panel">
-          <h2>Blueprint Configuration</h2>
-          <p>Select your mode and items below.</p>
-          
-          <div className="form-grid">
-            <div className="form-group search-container" ref={dropdownRef}>
-              <label>Target Item:</label>
-              <div className="search-input-wrapper">
-                <input 
-                  type="text" 
-                  placeholder="Search item (e.g. circuit)..."
-                  value={showDropdown ? searchQuery : selectedItemName}
-                  onFocus={() => { setShowDropdown(true); setSearchQuery(''); }}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  disabled={loading}
-                />
-                {showDropdown && (
-                  <div className="search-dropdown">
-                    {filteredItems.map(item => (
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <h2>Item Browser</h2>
+          <div className="sidebar-search">
+            <span className="search-icon">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Search items..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        <div className="sidebar-content">
+          {[...CATEGORIES, { id: 'other', name: 'Other', icon: '📦' }].map(cat => {
+            const items = categorizedItems[cat.id];
+            if (items.length === 0 && searchQuery) return null;
+            
+            const isOpen = openCategories[cat.id];
+            
+            return (
+              <div key={cat.id} className="category-group">
+                <div className="category-header" onClick={() => toggleCategory(cat.id)}>
+                  <div className="category-title">
+                    <span>{cat.icon}</span>
+                    {cat.name}
+                    <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>({items.length})</span>
+                  </div>
+                  <span className={`category-chevron ${isOpen ? 'open' : ''}`}>▼</span>
+                </div>
+                
+                {isOpen && (
+                  <div className="item-grid">
+                    {items.map(item => (
                       <div 
                         key={item.id} 
-                        className="dropdown-item"
-                        onClick={() => {
-                          setTargetItem(item.id);
-                          setSearchQuery(item.name);
-                          setShowDropdown(false);
-                        }}
+                        className={`item-card ${targetItem === item.id ? 'selected' : ''}`}
+                        onClick={() => setTargetItem(item.id)}
+                        title={item.name}
                       >
                         <img 
-                          src={getWikiIconUrl(item.id)} 
-                          alt="" 
-                          style={{ width: '20px', height: '20px', marginRight: '10px', verticalAlign: 'middle' }}
-                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                          src={getIconUrl(item.id)} 
+                          alt={item.name} 
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            if (target.src.includes(item.id) && !target.dataset.triedBase) {
+                              target.dataset.triedBase = "true";
+                              target.src = getBaseIconUrl(item.id);
+                            } else {
+                              target.src = getWikiFallbackUrl(item.id);
+                              target.onerror = (evt) => (evt.currentTarget.style.display = 'none');
+                            }
+                          }}
                         />
-                        {item.name}
+                        <div className="item-tooltip">{item.name}</div>
                       </div>
                     ))}
-                    {filteredItems.length === 0 && <div className="dropdown-no-results">No items found</div>}
                   </div>
                 )}
               </div>
-            </div>
+            );
+          })}
+        </div>
+      </aside>
 
-            <div className="form-group">
-              <label>Rate / min:</label>
-              <input 
-                type="number" 
-                value={rate} 
-                onChange={(e) => setRate(Number(e.target.value))} 
-                disabled={loading}
+      <main className="main-view">
+        <header className="header">
+          <h1>Factorio Blueprint Generator</h1>
+          <span className="version-badge">v5.0 Premium UI</span>
+        </header>
+
+        <section className="config-area">
+          <div className="selected-item-box">
+            <div className="selected-item-icon">
+              <img 
+                src={getIconUrl(targetItem)} 
+                alt="" 
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src.includes(targetItem) && !target.dataset.triedBase) {
+                    target.dataset.triedBase = "true";
+                    target.src = getBaseIconUrl(targetItem);
+                  } else {
+                    target.src = getWikiFallbackUrl(targetItem);
+                    target.onerror = (evt) => (evt.currentTarget.style.display = 'none');
+                  }
+                }} 
               />
             </div>
-
-            <div className="form-group">
-              <label>Belt Tier:</label>
-              <select value={beltTier} onChange={(e) => setBeltTier(e.target.value)} disabled={loading}>
-                {BELTS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+            <div className="selected-item-info">
+              <span className="selected-item-badge">Active Selection</span>
+              <h3>{selectedItem.name}</h3>
+              <p>ID: <code>{targetItem}</code></p>
             </div>
-
-            <div className="form-group">
-              <label>Inserter Tier:</label>
-              <select value={inserterTier} onChange={(e) => setInserterTier(e.target.value)} disabled={loading}>
-                {INSERTERS.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Machine Tier:</label>
-              <select value={machineTier} onChange={(e) => setMachineTier(e.target.value)} disabled={loading}>
-                {MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Power Pole Tier:</label>
-              <select value={poleTier} onChange={(e) => setPoleTier(e.target.value)} disabled={loading}>
-                {POLES.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
+            <button 
+              className="btn-generate" 
+              style={{ width: 'auto', marginTop: 0, padding: '0.75rem 2rem' }}
+              onClick={handleGenerate} 
+              disabled={loading}
+            >
+              {loading ? 'Generating...' : 'Build Blueprint'}
+            </button>
           </div>
 
-          <button 
-            className="btn-generate" 
-            onClick={handleGenerate} 
-            disabled={loading}
-          >
-            {loading ? 'Crunching Numbers...' : 'Generate High-Density Blueprint'}
-          </button>
+          <div className="config-panel">
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Production Rate / min:</label>
+                <input 
+                  type="number" 
+                  value={rate} 
+                  onChange={(e) => setRate(Number(e.target.value))} 
+                  disabled={loading}
+                />
+              </div>
 
-          {responseStatus && (
-            <div className={`status-box ${responseStatus.includes('Error') ? 'error' : 'success'}`}>
-              {responseStatus}
-            </div>
-          )}
+              <div className="form-group">
+                <label>Belt Quality:</label>
+                <select value={beltTier} onChange={(e) => setBeltTier(e.target.value)} disabled={loading}>
+                  {BELTS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
 
-          {blueprint && (
-            <div className="blueprint-box">
-              <h3>Base64 Output:</h3>
-              <textarea readOnly value={blueprint} />
-            </div>
-          )}
+              <div className="form-group">
+                <label>Inserter Strategy:</label>
+                <select value={inserterTier} onChange={(e) => setInserterTier(e.target.value)} disabled={loading}>
+                  {INSERTERS.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </div>
 
-          {entities.length > 0 && (
-            <div className="visualizer-container">
-              <h3>Blueprint Preview:</h3>
-              <div className="blueprint-grid">
-                {entities.map((ent: any, index: number) => {
-                  const pos = ent.position;
-                  const type = ent.name;
-                  if (!pos || !type) return null; // Prevenção de crash (V4.4.1)
-                  
-                  const scale = 20; 
-                  let size = 1;
-                  if (type.includes('assembling-machine')) size = 3;
-                  if (type.includes('combinator')) size = 1;
-                  if (type.includes('chemical-plant')) size = 3;
-                  if (type.includes('splitter')) size = 2;
+              <div className="form-group">
+                <label>Machine Standard:</label>
+                <select value={machineTier} onChange={(e) => setMachineTier(e.target.value)} disabled={loading}>
+                  {MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
 
-                  const style = {
-                    left: `${(pos.x - (type.includes('splitter') ? 1 : size/2)) * scale}px`,
-                    top: `${(pos.y - size/2) * scale}px`,
-                    width: `${(type.includes('splitter') ? 2 : size) * scale}px`,
-                    height: `${size * scale}px`,
-                  };
-
-                  let className = "grid-entity";
-                  if (type.includes('assembling-machine') || type.includes('chemical-plant')) className += " machine";
-                  if (type.includes('belt')) className += " belt";
-                  if (type.includes('inserter')) className += " inserter";
-                  if (type.includes('combinator')) className += " combinator";
-                  if (type.includes('pipe')) className += " pipe";
-                  if (type.includes('pole')) className += " pole";
-                  if (type.includes('substation')) {
-                    className += " substation";
-                    size = 2; // Garantir tamanho 2x2
-                  }
-
-                  return (
-                    <div 
-                      key={index} 
-                      className={className} 
-                      style={style}
-                      title={`${type} at ${pos.x}, ${pos.y}`}
-                    >
-                      {(type.includes('machine') || type.includes('chemical-plant') || type.includes('splitter') || type.includes('pole') || type.includes('substation')) && (
-                        <img 
-                          src={getWikiIconUrl(type)} 
-                          alt="" 
-                          style={{ width: '80%', height: '80%', opacity: 0.8 }}
-                          onError={(e) => (e.currentTarget.style.display = 'none')}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="form-group">
+                <label>Power Infrastructure:</label>
+                <select value={poleTier} onChange={(e) => setPoleTier(e.target.value)} disabled={loading}>
+                  {POLES.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
               </div>
             </div>
-          )}
 
+            {responseStatus && (
+              <div className={`status-box ${responseStatus.includes('Error') ? 'error' : 'success'}`}>
+                {responseStatus}
+              </div>
+            )}
+
+            {blueprint && (
+              <div className="blueprint-box">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h3>Blueprint Output:</h3>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(blueprint)}
+                    style={{ background: 'transparent', border: '1px solid #22c55e', color: '#22c55e', padding: '0.2rem 0.5rem', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Copy to Clipboard
+                  </button>
+                </div>
+                <textarea readOnly value={blueprint} />
+              </div>
+            )}
+
+            {entities.length > 0 && (
+              <div className="visualizer-container">
+                <h3>Blueprint Preview:</h3>
+                <div className="blueprint-grid">
+                  {entities.map((ent: any, index: number) => {
+                    const pos = ent.position;
+                    const type = ent.name;
+                    if (!pos || !type) return null;
+                    
+                    const scale = 20; 
+                    let size = 1;
+                    if (type.includes('assembling-machine')) size = 3;
+                    if (type.includes('chemical-plant')) size = 3;
+                    if (type.includes('splitter')) size = 2;
+                    if (type.includes('substation')) size = 2;
+
+                    const style = {
+                      left: `${(pos.x - (type.includes('splitter') ? 1 : size/2)) * scale}px`,
+                      top: `${(pos.y - size/2) * scale}px`,
+                      width: `${(type.includes('splitter') ? 2 : size) * scale}px`,
+                      height: `${size * scale}px`,
+                    };
+
+                    let className = "grid-entity";
+                    if (type.includes('machine') || type.includes('chemical-plant')) className += " machine";
+                    if (type.includes('belt')) className += " belt";
+                    if (type.includes('inserter')) className += " inserter";
+                    if (type.includes('pole') || type.includes('substation')) className += " pole";
+
+                    return (
+                      <div 
+                        key={index} 
+                        className={className} 
+                        style={style}
+                        title={`${type} at ${pos.x}, ${pos.y}`}
+                      >
+                        {(size >= 2 || type.includes('pole')) && (
+                          <img 
+                            src={getIconUrl(type)} 
+                            alt="" 
+                            style={{ width: '80%', height: '80%', opacity: 0.8 }}
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              if (target.src.includes(type) && !target.dataset.triedBase) {
+                                target.dataset.triedBase = "true";
+                                target.src = getBaseIconUrl(type);
+                              } else {
+                                target.src = getWikiFallbackUrl(type);
+                                target.onerror = (evt) => (evt.currentTarget.style.display = 'none');
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </section>
       </main>
     </div>
