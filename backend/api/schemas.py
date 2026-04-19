@@ -19,6 +19,11 @@ class ModulesSchema(BaseModel):
     machine_modules: List[str] = Field(default_factory=lambda: ["productivity-module-3"])
     beacon_modules: List[str] = Field(default_factory=lambda: ["speed-module-3"])
 
+class AIContextSchema(BaseModel):
+    block_size_limit: Optional[str] = "15x15"
+    custom_instructions: Optional[str] = None
+    allow_hallucinations: bool = False
+
 class SimpleModeRequest(BaseModel):
     mode: str = Field(default="simple", pattern="^simple$")
     target: str
@@ -26,6 +31,7 @@ class SimpleModeRequest(BaseModel):
     options: OptionsSchema = Field(default_factory=OptionsSchema)
     tech_tier: TechTierSchema = Field(default_factory=TechTierSchema)
     modules: ModulesSchema = Field(default_factory=ModulesSchema)
+    ai_context: AIContextSchema = Field(default_factory=AIContextSchema)
 
 class AdvancedNodeSchema(BaseModel):
     item: str
@@ -43,5 +49,23 @@ class AdvancedModeRequest(BaseModel):
 class ADAMRequest(BaseModel):
     mode: str = Field(default="adam", pattern="^adam$")
     prompt: str
+
+class MachineRequirement(BaseModel):
+    item: str
+    count: float
+    machine_type: str
+
+class ADAMWorkOrderSchema(BaseModel):
+    target_item: str
+    total_rate_per_minute: float
+    requested_machines: List[MachineRequirement]
+    tech_tier: TechTierSchema
+    context: AIContextSchema
+
+class ADAMResponseSchema(BaseModel):
+    raw_dsl: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    translated_entities: List[Dict[str, Any]] = Field(default_factory=list)
+    hallucination_log: List[str] = Field(default_factory=list)
 
 BlueprintRequestSchema = Union[SimpleModeRequest, AdvancedModeRequest, ADAMRequest]

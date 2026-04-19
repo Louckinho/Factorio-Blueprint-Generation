@@ -7,15 +7,24 @@ class DraftsmanCompiler:
         self.blueprint = Blueprint()
         self.blueprint.label = label
 
-    def generate_from_entities(self, entities_list: list):
+    def generate_from_entities(self, entities_list: list, label: str = None):
         """
         Gera um blueprint a partir de uma lista simples de entidades.
-        Cada entidade deve ser um dict: {"name": str, "x": float, "y": float, "direction": int, "recipe": str, ...}
+        Cada entidade deve ser um dict: {"name": str, "x": float, "y": float} OU {"name": str, "position": {"x": float, "y": float}}
         """
+        if label:
+            self.blueprint.label = label
+
         for ent_data in entities_list:
             try:
                 name = ent_data["name"]
-                pos = (ent_data["x"], ent_data["y"])
+                
+                # Extração flexível de posição
+                if "position" in ent_data:
+                    pos = (ent_data["position"]["x"], ent_data["position"]["y"])
+                else:
+                    pos = (ent_data.get("x", 0), ent_data.get("y", 0))
+
                 direction = ent_data.get("direction", 0)
                 
                 if "assembling-machine" in name or "furnace" in name or "oil-refinery" in name or "chemical-plant" in name:
@@ -23,14 +32,15 @@ class DraftsmanCompiler:
                     recipe = ent_data.get("recipe")
                     if recipe:
                         try:
+                            # Tenta aplicar a receita se o objeto suportar
                             ent.recipe = recipe
                         except:
-                            pass # Fornalhas não aceitam recipe setada
+                            pass
                 elif "splitter" in name:
                     ent = Splitter(name, tile_position=pos, direction=direction)
                 elif "underground-belt" in name:
                     ent = UndergroundBelt(name, tile_position=pos, direction=direction)
-                    ent.io_type = ent_data.get("io_type", "input")
+                    ent.io_type = ent_data.get("type") or ent_data.get("io_type") or "input"
                 elif "transport-belt" in name:
                     ent = TransportBelt(name, tile_position=pos, direction=direction)
                 elif "inserter" in name:
@@ -42,13 +52,12 @@ class DraftsmanCompiler:
                 elif "electric-pole" in name or "substation" in name:
                     ent = ElectricPole(name, tile_position=pos)
                 else:
-                    # Fallback generico se soubermos a classe ou for simples
                     from draftsman.entity import Entity
                     ent = Entity(name, tile_position=pos, direction=direction)
 
                 self.blueprint.entities.append(ent)
             except Exception as e:
-                print(f"Erro ao adicionar entidade genérica {ent_data.get('name')}: {e}")
+                print(f"Erro ao adicionar entidade {ent_data.get('name')}: {e}")
 
         blueprint_dict = self.blueprint.to_dict()
         return self.blueprint.to_string(), blueprint_dict["blueprint"].get("entities", [])

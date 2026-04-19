@@ -1,49 +1,48 @@
-# 🏗️ FBG-Django: Arquitetura do Sistema
+# 🏗️ FBG-Django: Arquitetura Híbrida (ADAM Project)
 
-A arquitetura do **Factorio Blueprint Generator** é totalmente desacoplada, utilizando **Django REST Framework (DRF)** no Backend e **React (Vite) + TypeScript** no Frontend.
-
----
-
-## 🛰️ Fluxo de Dados (Data Flow)
-
-1.  **User Input:** O usuário seleciona um item na lista de busca (Combobox) ou digita um prompt para a IA.
-2.  **API Request:** 
-    - `/api/generate/`: Pipeline Procedural (A* + Heurísticas).
-    - `/api/generate-ai/`: Pipeline Neural (Projeto ADAM).
-3.  **Validation:** O Django usa **Pydantic** para validar se o prompt ou os parâmetros técnicos são aceitáveis.
-4.  **Pipeline Execute (ADAM Flow):**
-    - **AI Bridge:** Envio do prompt para o Ollama (Local LLM).
-    - **ADAM DSL Parser:** Tradução da resposta comprimida (`M|X|Y|D`) para objetos de entidades.
-    - **Draftsman Compiler:** Geração final da Blueprint String.
-5.  **Draftsman Compiler (Procedural Flow):** (Legado) Uso de Solver e Bin Packing para layouts matemáticos.
+A arquitetura do **Factorio Blueprint Generator** evoluiu para um modelo híbrido, utilizando o **Django** como motor matemático e a **IA ADAM** como arquiteta de layouts.
 
 ---
 
-## 📡 Detalhes da API
+## 🛰️ Novo Fluxo de Dados (Hybrid Flow)
 
-### `GET /api/items/`
-- **Fonte:** `draftsman.data.recipes.raw`
-- **Função:** Fornece a lista de todas as receitas oficiais do Factorio Vanilla filtradas e prettificadas.
-
-### `POST /api/generate-ai/`
-- **Entrada:** `{"mode": "adam", "prompt": "30 red-science/min"}`
-- **Saída:** 
-  - `blueprint_string`: String oficial gerada pela IA.
-  - `entities_map`: Para renderização no front.
-  - `raw_dsl`: O código fonte geométrico que a IA gerou.
-
----
-
-## 🛠️ A Revolução ADAM: AI-Gateway
-A transição para I.A permite que o sistema abandone algoritmos de pathfinding pesados que frequentemente geravam "espaguete". A IA, treinada em layouts de especialistas, gera geometrias perfeitas via **DSL comprimida**, que o Django apenas compila usando o `draftsman`.
-O **Roteamento de Fluidos** trará novas restrições ao sistema:
-- **Camada de Pipes:** Diferente das esteiras, os canos não têm "lanes". Um cano de Gás de Petróleo ocupa o tile inteiro.
-- **Evitar Contaminação:** O algoritmo A* deverá ter um peso de custo infinito quando tentar cruzar um tile ocupado por outro fluido.
-- **Underground Pipes:** Usar saltos de 10 tiles para cruzar áreas densas de esteiras.
+1.  **User Input:** O usuário define o item, a taxa de produção e configurações de IA (tamanho do bloco, instruções personalizadas) no Frontend React.
+2.  **Mathematical Calculation (Django):** 
+    - O backend utiliza o `RateSolver` (baseado nas receitas oficiais do Factorio via `draftsman`) para calcular a quantidade exata de máquinas e insumos necessários.
+3.  **Work Order:** O Django formata uma "Ordem de Serviço" JSON contendo os requisitos matemáticos e o contexto da IA.
+4.  **Neural Generation (ADAM AI):**
+    - A Ordem de Serviço é enviada via **AIBridge** (httpx assíncrono) para o motor local do Projeto ADAM (Ollama/Llama.cpp).
+    - A IA gera o layout geométrico ideal e responde via **DSL comprimida**.
+5.  **Reverse Translation (O Decodificador):**
+    - O módulo `ReverseTranslator` interpreta a DSL, extrai metadados (`META|SIZE`) e normaliza coordenadas.
+6.  **Tiling & Compilation (Django Control):**
+    - O Django realiza o **"Carimbo" (Tiling)** horizontal caso a demanda produtiva exija múltiplos blocos da IA.
+    - O `DraftsmanCompiler` gera a string final do blueprint.
 
 ---
 
-## 🧪 Estrutura de Arquivos
-- `backend/api/`: Camada de interface REST e validação.
-- `backend/engine/`: O "cérebro" matemático e geométrico.
-- `frontend/src/`: Interface reativa de alta densidade.
+## 📡 Detalhes da API Principal
+
+### `POST /api/generate/`
+- **Flexibilidade:** Suporta modos `simple` e `adam`.
+- **Async Inside:** Utiliza Django Async Views para evitar bloqueio durante a inferência da IA.
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+- **Backend:** Django 5.x, DRF, Pydantic (Validação).
+- **Engine:** factorio-draftsman (Vanilla Data), NetworkX (Graph Solver), httpx (AI I/O).
+- **Frontend:** React, Vite, TypeScript, Premium CSS (Dynamic Themes).
+- **AI Local:** Projeto ADAM (Série Llama-3 Fine-tuned via Unsloth).
+
+---
+
+## 🧪 Estrutura de Arquivos Atualizada
+- `backend/api/`: Interfaces REST e Schemas Pydantic.
+- `backend/engine/`: 
+    - `solver.py`: Cérebro matemático.
+    - `translator.py`: Decodificador DSL da IA.
+    - `ai_bridge.py`: Ponte assíncrona com o Ollama.
+    - `pipeline.py`: Orquestrador do fluxo híbrido.
+    - `draftsman_compiler.py`: Compilador para blueprint strings.
+- `frontend/src/`: Interface reativa com tema dinâmico ADAM.

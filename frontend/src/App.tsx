@@ -12,13 +12,10 @@ const CATEGORIES = [
 ]
 
 function App() {
-  const [targetItem, setTargetItem] = useState('electronic-circuit')
-  const [rate, setRate] = useState(100)
-  const [beltTier, setBeltTier] = useState('express-transport-belt')
-  const [inserterTier, setInserterTier] = useState('fast-inserter')
-  const [machineTier, setMachineTier] = useState('assembling-machine-3')
-  const [furnaceTier, setFurnaceTier] = useState('electric-furnace')
-  const [poleTier, setPoleTier] = useState('medium-electric-pole')
+  const [generationMode, setGenerationMode] = useState<'simple' | 'adam'>('simple')
+  const [blockSizeLimit, setBlockSizeLimit] = useState('15x15')
+  const [customInstructions, setCustomInstructions] = useState('')
+  const [showHalLog, setShowHalLog] = useState(false)
   
   const [allItems, setAllItems] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -170,25 +167,30 @@ function App() {
     setEntities([])
     
     const payload = {
-      mode: "simple",
+      mode: generationMode,
       target: targetItem,
       rate_per_minute: Number(rate),
       options: {
         tileable_block: true,
         max_machines_per_block: 15
       },
-        tech_tier: {
-          belt: beltTier,
-          inserter: inserterTier,
-          machine: machineTier,
-          furnace: furnaceTier,
-          pole: poleTier
-        },
+      tech_tier: {
+        belt: beltTier,
+        inserter: inserterTier,
+        machine: machineTier,
+        furnace: furnaceTier,
+        pole: poleTier
+      },
       modules: {
         beaconized: true,
         beacon_entity: "beacon",
         machine_modules: ["productivity-module-3"],
         beacon_modules: ["speed-module-3"]
+      },
+      ai_context: {
+        block_size_limit: blockSizeLimit,
+        custom_instructions: customInstructions,
+        allow_hallucinations: false
       }
     };
 
@@ -202,9 +204,9 @@ function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        setResponseStatus(`Error: ${res.status} - ${JSON.stringify(data)}`);
+        setResponseStatus(`Error: ${res.status} - ${data.error || JSON.stringify(data)}`);
       } else {
-        setResponseStatus(`Success! Generated blueprint for ${data.metadata.item}`);
+        setResponseStatus(`Success! Generated via ${generationMode.toUpperCase()} engine.`);
         setBlueprint(data.blueprint_string);
         setEntities(data.entities_map || []);
       }
@@ -283,10 +285,27 @@ function App() {
         </div>
       </aside>
 
-      <main className="main-view">
+      <main className={`main-view ${generationMode === 'adam' ? 'ai-theme' : ''}`}>
         <header className="header">
-          <h1>Factorio Blueprint Generator</h1>
-          <span className="version-badge">v5.0 Premium UI</span>
+          <div className="title-area">
+            <h1>Factorio Blueprint Generator</h1>
+            <span className="version-badge">{generationMode === 'adam' ? 'ADAM AI ACTIVE' : 'v5.0 Premium UI'}</span>
+          </div>
+          
+          <div className="mode-toggle">
+            <button 
+              className={`mode-btn ${generationMode === 'simple' ? 'active' : ''}`}
+              onClick={() => setGenerationMode('simple')}
+            >
+              Classic
+            </button>
+            <button 
+              className={`mode-btn adam ${generationMode === 'adam' ? 'active' : ''}`}
+              onClick={() => setGenerationMode('adam')}
+            >
+              AI ADAM
+            </button>
+          </div>
         </header>
 
         <section className="config-area">
@@ -369,6 +388,39 @@ function App() {
                 </select>
               </div>
             </div>
+
+            {generationMode === 'adam' && (
+              <div className="ai-config-section">
+                <div className="section-header">
+                  <h3>🧠 AI Architecture Settings</h3>
+                </div>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Block Size Constraint:</label>
+                    <select value={blockSizeLimit} onChange={(e) => setBlockSizeLimit(e.target.value)}>
+                      <option value="10x10">Small (10x10)</option>
+                      <option value="15x15">Standard (15x15)</option>
+                      <option value="20x20">Large (20x20)</option>
+                      <option value="blueprint">Full Size (IA Decides)</option>
+                    </select>
+                  </div>
+                  <div className="form-group span-2">
+                    <label>Custom AI Instructions:</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 'Use high density', 'Compact belts'..." 
+                      value={customInstructions}
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="ai-presets">
+                  <button onClick={() => setCustomInstructions("Ultra compact, minimize tiles")}>Compact</button>
+                  <button onClick={() => setCustomInstructions("Follow Main Bus alignment")}>Main Bus</button>
+                  <button onClick={() => setCustomInstructions("Maximize beacons distance")}>Efficiency</button>
+                </div>
+              </div>
+            )}
 
             {responseStatus && (
               <div className={`status-box ${responseStatus.includes('Error') ? 'error' : 'success'}`}>

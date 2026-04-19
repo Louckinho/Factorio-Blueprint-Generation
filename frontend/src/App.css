@@ -502,3 +502,104 @@
 }
 
 
+/* Mode Toggle Styles */
+.mode-toggle {
+  display: flex;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mode-btn {
+  padding: 0.5rem 1.5rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mode-btn.active {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3);
+}
+
+.mode-btn.adam.active {
+  background: #a855f7; /* Neural Purple */
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+/* AI Theme Overrides */
+.main-view.ai-theme {
+  background-color: #0d0a1b; /* Much darker, purplish */
+  background-image: 
+    radial-gradient(circle at 10% 10%, rgba(168, 85, 247, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 90% 90%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+}
+
+.ai-theme .header h1 {
+  background: linear-gradient(90deg, #a855f7, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ai-theme .btn-generate {
+  background: linear-gradient(135deg, #a855f7, #7e22ce);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+}
+
+.ai-theme .selected-item-box {
+  border-color: #a855f7;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+/* AI Config Section */
+.ai-config-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(168, 85, 247, 0.05);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 12px;
+  animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-config-section h3 {
+  color: #a855f7;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.ai-presets {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.ai-presets button {
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #d8b4fe;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ai-presets button:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+}
+
+.span-2 {
+  grid-column: span 2;
+}

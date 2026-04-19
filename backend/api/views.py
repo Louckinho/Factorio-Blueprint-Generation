@@ -8,7 +8,7 @@ from draftsman.data import recipes
 import json
 
 class BlueprintGenerateView(APIView):
-    def post(self, request):
+    async def post(self, request):
         try:
             # We explicitly check the mode to parse with the correct Pydantic schema
             mode = request.data.get('mode', 'simple')
@@ -17,14 +17,16 @@ class BlueprintGenerateView(APIView):
                 parsed_data = SimpleModeRequest(**request.data)
             elif mode == 'advanced':
                 parsed_data = AdvancedModeRequest(**request.data)
+            elif mode == 'adam':
+                parsed_data = ADAMRequest(**request.data)
             else:
                 return Response(
-                    {"error": "Invalid mode. Use 'simple' or 'advanced'."},
+                    {"error": "Invalid mode. Use 'simple', 'advanced' or 'adam'."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Chama o motor passando o dicionário limpo validado pelo Pydantic
-            blueprint_string, entities = execute_generation_pipeline(parsed_data.model_dump())
+            # Chama o motor de forma assíncrona
+            blueprint_string, entities = await execute_generation_pipeline(parsed_data.model_dump())
             
             # Retorna com a resposta validada
             return Response({
@@ -39,6 +41,8 @@ class BlueprintGenerateView(APIView):
         except ValidationError as e:
             return Response({"error": "Payload validation failed", "details": e.errors()}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RecipeListView(APIView):
