@@ -5,6 +5,7 @@ from .draftsman_compiler import DraftsmanCompiler
 from .ai_bridge import AIBridge
 from .translator import ReverseTranslator
 from .block_assembler import BlockAssembler
+from .auto_router import AutoRouter
 
 def get_belt_capacity(belt_name: str) -> float:
     """Retorna a capacidade de itens/seg da esteira"""
@@ -13,9 +14,9 @@ def get_belt_capacity(belt_name: str) -> float:
     return 15.0
 
 async def execute_generation_pipeline(payload: dict):
-    print("\n" + ">>>" * 10)
-    print(f"[PIPELINE] INICIANDO GERAÇÃO PARA: {payload.get('target')} ({payload.get('rate_per_minute')}/min)")
-    print("<<<" * 10)
+    print("\n" + ">>>" * 10, flush=True)
+    print(f"[PIPELINE] INICIANDO GERAÇÃO PARA: {payload.get('target')} ({payload.get('rate_per_minute')}/min)", flush=True)
+    print("<<<" * 10, flush=True)
 
     target_item = payload.get("target", "unknown-item")
     rate = payload.get("rate_per_minute", 60)
@@ -24,7 +25,7 @@ async def execute_generation_pipeline(payload: dict):
     belt_name = tech_tier_data.get("belt", "transport-belt")
     belt_capacity_per_sec = get_belt_capacity(belt_name)
     
-    print(f"[STEP 1] Resolvendo matemática de produção...")
+    print(f"[STEP 1] Resolvendo matemática de produção...", flush=True)
     solver = RateSolver()
     solver.oil_recipe = tech_tier_data.get("oil_recipe", "advanced-oil-processing")
     nodes_requirements = solver.resolve_requirements(
@@ -34,21 +35,22 @@ async def execute_generation_pipeline(payload: dict):
         furnace_name=tech_tier_data.get("furnace", "electric-furnace")
     )
 
-    print(f"[MATEMÁTICA] Itens necessários para {target_item}:")
+    print(f"[MATEMÁTICA] Itens necessários para {target_item}:", flush=True)
     for n in nodes_requirements:
-        print(f"  - {n['item']}: {n['machines_needed']:.2f} máquinas | {n['rate_per_sec']:.2f} itens/seg")
+        print(f"  - {n['item']}: {n['machines_needed']:.2f} máquinas | {n['rate_per_sec']:.2f} itens/seg", flush=True)
 
     production_nodes = [n for n in nodes_requirements if not n["is_raw_input"]]
     
     if not production_nodes:
-        print("[ERRO] Nenhum nó de produção encontrado!")
+        print("[ERRO] Nenhum nó de produção encontrado!", flush=True)
         raise ValueError(f"Não foi possível calcular requisitos de produção para {target_item}")
 
     translator = ReverseTranslator()
     assembler = BlockAssembler()
+    router = AutoRouter(tier=int(tech_tier_data.get("tier", 1)))
     modules_data = []
 
-    print(f"\n[STEP 2] Chamando IA ADAM para {len(production_nodes)} módulos...")
+    print(f"\n[STEP 2] Chamando IA ADAM para {len(production_nodes)} módulos...", flush=True)
     for node in production_nodes:
         item = node["item"]
         total_machines = math.ceil(node["machines_needed"])
@@ -68,19 +70,23 @@ async def execute_generation_pipeline(payload: dict):
             
         # Voltando ao prompt ULTRA-LIMPO (Igual ao Treino)
         work_order = f"Generate: [item={item}|machine={machine_type}|count={machines_per_block}|tier={tier}]"
-        print(f"  > Ordem de Serviço: {work_order}")
+        print(f"  > Ordem de Serviço: {work_order}", flush=True)
         
         dsl_response = await AIBridge.call_adam(work_order)
         if not dsl_response:
-            print(f"  [AVISO] ADAM falhou para {item}")
+            print(f"  [AVISO] ADAM falhou para {item}", flush=True)
             continue
             
-        print(f"  [IA] Resposta DSL recebida ({len(dsl_response)} chars)")
-        print(f"  [RAW DSL]\n{dsl_response}\n[END RAW DSL]")
+        print(f"  [IA] Resposta DSL recebida ({len(dsl_response)} chars)", flush=True)
+        print(f"  [RAW DSL]\n{dsl_response}\n[END RAW DSL]", flush=True)
         entities, metadata = translator.decode_dsl(dsl_response)
         
+        # --- NOVO: MODO HÍBRIDO (AUTO-ROUTER) ---
+        print(f"  [ROUTER] Aplicando roteamento automático...", flush=True)
+        entities = router.route_module(entities, item)
+        
         if entities:
-            print(f"  [OK] Traduzido: {len(entities)} entidades encontradas.")
+            print(f"  [OK] Traduzido: {len(entities)} entidades encontradas.", flush=True)
             modules_data.append({
                 "item": item,
                 "entities": entities,
@@ -88,16 +94,16 @@ async def execute_generation_pipeline(payload: dict):
                 "metadata": metadata
             })
 
-    print(f"\n[STEP 3] Montando Main Bus com {len(modules_data)} módulos...")
+    print(f"\n[STEP 3] Montando Main Bus com {len(modules_data)} módulos...", flush=True)
     final_entities = assembler.assemble(modules_data)
-    print(f"  - Total final de entidades: {len(final_entities)}")
+    print(f"  - Total final de entidades: {len(final_entities)}", flush=True)
 
-    print(f"[STEP 4] Compilando Blueprint String...")
+    print(f"[STEP 4] Compilando Blueprint String...", flush=True)
     compiler = DraftsmanCompiler(label=f"ADAM Factory: {target_item}")
     blueprint_string, entities_map = compiler.generate_from_entities(
         final_entities,
         label=f"FBG-ADAM | {target_item} | {rate}/min"
     )
     
-    print(">>> GERAÇÃO FINALIZADA COM SUCESSO <<<\n")
+    print(">>> GERAÇÃO FINALIZADA COM SUCESSO <<<\n", flush=True)
     return blueprint_string, entities_map

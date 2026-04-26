@@ -73,13 +73,14 @@ class ReverseTranslator:
 
     def _parse_token_line(self, line: str) -> Optional[Dict[str, Any]]:
         parts = line.split()
-        if len(parts) < 4:
+        if len(parts) < 3:
             return None
 
         token = parts[0].lower()
         try:
             x = float(parts[1])
             y = float(parts[2])
+            item_hint = parts[3] if len(parts) > 3 else None
         except ValueError:
             print(f"[TRANSLATOR] Erro: Coordenadas invalidas '{line}'")
             return None
@@ -102,10 +103,16 @@ class ReverseTranslator:
             "direction": self.DIR_MAP.get(parts[3].upper() if len(parts) > 3 else '0', 0)
         }
 
-        # Receita ou Extra (Opcional - ex: io_type para undergrounds)
+        # Receita ou Extra (Opcional)
+        if item_hint:
+            if "machine" in entity_name or "furnace" in entity_name:
+                ent["recipe"] = item_hint
+            elif "underground" in entity_name:
+                ent["type"] = item_hint # input/output
+                
+        # Mantém compatibilidade com formato longo se existir
         if len(parts) > 4 and parts[4]:
-            ent["recipe"] = parts[4]
-            ent["type"] = parts[4] # Pelo drafting, undergrounds usam 'type': 'input'/'output'
+            ent["extra"] = parts[4]
 
         return ent
 

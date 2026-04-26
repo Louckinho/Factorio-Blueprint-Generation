@@ -16,7 +16,7 @@ class AIBridge:
     
     # Caminho base para as memórias (Caminho do WSL)
     MODELS_BASE_PATH = os.getenv("ADAM_MODELS_PATH", "/mnt/c/Code/Pessoal/Projeto_ADAM_Factorio/models")
-    DEFAULT_LORA = "20260425_v3_CLOUD_3B_2048tk_loss0.24" # Nossa memória v3
+    DEFAULT_LORA = "lora_hybrid_v1" # Nosso novo cérebro híbrido
 
     @classmethod
     def _initialize_model(cls):
@@ -68,11 +68,15 @@ class AIBridge:
         if cls._model is None:
             await asyncio.to_thread(cls._initialize_model)
 
-        # O work_order já vem pronto do pipeline.py: "Generate: [item=...|...]"
-        # Apenas colocamos no template Alpaca que o modelo conhece
-        prompt = f"### Instruction:\n{work_order}\n\n### Input:\n\n\n### Response:\n"
+        # Template Alpaca EXATO do colab_train.py (Linha 53)
+        prompt = (
+            "### Instruction:\n"
+            f"{work_order}\n\n"
+            "### Input:\n\n\n"
+            "### Response:\n"
+        )
 
-        print(f"[AI BRIDGE] Gerando para: {work_order}...")
+        print(f"[AI BRIDGE] Gerando para: {work_order}...", flush=True)
 
         try:
             inputs = cls._tokenizer(prompt, return_tensors="pt").to("cuda")
@@ -81,16 +85,19 @@ class AIBridge:
                 outputs = await asyncio.to_thread(
                     cls._model.generate,
                     **inputs,
-                    max_new_tokens=2048, # Sincronizado com o treino de 2048 tokens
+                    max_new_tokens=1024,
                     do_sample=True,
-                    temperature=0.7,     # Mais criativo para layouts longos
+                    temperature=0.3,
                     top_p=0.9,
-                    repetition_penalty=1.5,
+                    repetition_penalty=1.15, # Balanceado para evitar loops e permitir padroes
                     pad_token_id=cls._tokenizer.eos_token_id
                 )
 
             result = cls._tokenizer.decode(outputs[0], skip_special_tokens=True)
             
+            # Debug: Ver exatamente o que saiu do modelo antes de qualquer corte
+            print(f"[AI BRIDGE] RAW OUTPUT:\n{result}\n[END RAW OUTPUT]", flush=True)
+
             if "### Response:" in result:
                 dsl = result.split("### Response:")[-1].strip()
             else:
