@@ -1,16 +1,20 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .schemas import SimpleModeRequest, AdvancedModeRequest
+from .schemas import SimpleModeRequest, AdvancedModeRequest, ADAMRequest
 from engine.pipeline import execute_generation_pipeline
 from pydantic import ValidationError
 from draftsman.data import recipes
 import json
 
+from asgiref.sync import async_to_sync
+
 class BlueprintGenerateView(APIView):
-    async def post(self, request):
+    def post(self, request):
+        print("\n" + "="*50)
+        print(f"[DEBUG] PAYLOAD: {request.data}")
+        print("="*50)
         try:
-            # We explicitly check the mode to parse with the correct Pydantic schema
             mode = request.data.get('mode', 'simple')
             
             if mode == 'simple':
@@ -25,8 +29,11 @@ class BlueprintGenerateView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Chama o motor de forma assíncrona
-            blueprint_string, entities = await execute_generation_pipeline(parsed_data.model_dump())
+            # Chama o motor de forma sincronizada
+            print("[DEBUG] Chamando pipeline...")
+            pipeline_func = async_to_sync(execute_generation_pipeline)
+            blueprint_string, entities = pipeline_func(parsed_data.model_dump())
+            print("[DEBUG] Pipeline concluído com sucesso.")
             
             # Retorna com a resposta validada
             return Response({

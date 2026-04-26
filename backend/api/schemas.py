@@ -48,7 +48,13 @@ class AdvancedModeRequest(BaseModel):
 
 class ADAMRequest(BaseModel):
     mode: str = Field(default="adam", pattern="^adam$")
-    prompt: str
+    target: str
+    rate_per_minute: float = Field(gt=0)
+    options: OptionsSchema = Field(default_factory=OptionsSchema)
+    tech_tier: TechTierSchema = Field(default_factory=TechTierSchema)
+    modules: ModulesSchema = Field(default_factory=ModulesSchema)
+    ai_context: AIContextSchema = Field(default_factory=AIContextSchema)
+    prompt: Optional[str] = None # Tornamos opcional, pois o target/rate é o principal
 
 class MachineRequirement(BaseModel):
     item: str

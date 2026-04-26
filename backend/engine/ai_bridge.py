@@ -14,8 +14,8 @@ class AIBridge:
     _model = None
     _tokenizer = None
     
-    # Caminho base para as memórias (Ajuste conforme sua estrutura)
-    MODELS_BASE_PATH = os.getenv("ADAM_MODELS_PATH", "c:/Code/Pessoal/Projeto_ADAM_Factorio/models")
+    # Caminho base para as memórias (Caminho do WSL)
+    MODELS_BASE_PATH = os.getenv("ADAM_MODELS_PATH", "/mnt/c/Code/Pessoal/Projeto_ADAM_Factorio/models")
     DEFAULT_LORA = "20260425_v3_CLOUD_3B_2048tk_loss0.24" # Nossa memória v3
 
     @classmethod
@@ -81,9 +81,9 @@ class AIBridge:
                 outputs = await asyncio.to_thread(
                     cls._model.generate,
                     **inputs,
-                    max_new_tokens=1024,
+                    max_new_tokens=2048, # Sincronizado com o treino de 2048 tokens
                     do_sample=True,
-                    temperature=0.3, # Baixa temperatura no backend para ser mais assertivo
+                    temperature=0.7,     # Mais criativo para layouts longos
                     top_p=0.9,
                     repetition_penalty=1.5,
                     pad_token_id=cls._tokenizer.eos_token_id

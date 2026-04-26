@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Tuple, Optional
 from draftsman.data import entities
 
 # Configuração global: Caminho para o projeto ADAM (Single Source of Truth para a DSL)
-ADAM_PROJECT_PATH = r"c:\Code\Pessoal\Projeto_ADAM_Factorio\src\encoders"
+ADAM_PROJECT_PATH = "/mnt/c/Code/Pessoal/Projeto_ADAM_Factorio/src/encoders"
 if ADAM_PROJECT_PATH not in sys.path:
     sys.path.append(ADAM_PROJECT_PATH)
 
@@ -81,22 +81,25 @@ class ReverseTranslator:
             x = float(parts[1])
             y = float(parts[2])
         except ValueError:
-            self.hallucination_log.append(f"Coordenadas inválidas: {line}")
+            print(f"[TRANSLATOR] Erro: Coordenadas invalidas '{line}'")
             return None
 
+        # 1. Tenta mapear abreviacao (ex: b1 -> transport-belt)
         entity_name = ABBREV_TO_FULL.get(token)
+        
+        # 2. Se nao for abreviacao, checa se ja e o nome completo
         if not entity_name:
-            # Tenta usar o token diretamente se for um nome válido do Factorio
-            if token.lower() in entities.raw:
-                entity_name = token.lower()
+            if token in entities.raw:
+                entity_name = token
             else:
-                self.hallucination_log.append(f"Token desconhecido: {token}")
+                # 3. Fallback: Se for algo como 'k2', mas nao estava no dict por algum motivo
+                print(f"[TRANSLATOR] Aviso: Token desconhecido '{token}' na linha: {line}")
                 return None
 
         ent = {
             "name": entity_name,
             "position": {"x": x, "y": y},
-            "direction": self.DIR_MAP.get(parts[3] if len(parts) > 3 else '0', 0)
+            "direction": self.DIR_MAP.get(parts[3].upper() if len(parts) > 3 else '0', 0)
         }
 
         # Receita ou Extra (Opcional - ex: io_type para undergrounds)
