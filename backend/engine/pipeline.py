@@ -76,6 +76,7 @@ async def execute_generation_pipeline(payload: dict):
             continue
             
         print(f"  [IA] Resposta DSL recebida ({len(dsl_response)} chars)")
+        print(f"  [RAW DSL]\n{dsl_response}\n[END RAW DSL]")
         entities, metadata = translator.decode_dsl(dsl_response)
         
         if entities:
