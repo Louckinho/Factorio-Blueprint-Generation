@@ -12,10 +12,18 @@ const CATEGORIES = [
 ]
 
 function App() {
-  const [generationMode, setGenerationMode] = useState<'simple' | 'adam'>('simple')
+  const [generationMode, setGenerationMode] = useState<'simple' | 'adam'>('adam')
   const [blockSizeLimit, setBlockSizeLimit] = useState('15x15')
   const [customInstructions, setCustomInstructions] = useState('')
-  const [showHalLog, setShowHalLog] = useState(false)
+  
+  // States essenciais que faltavam
+  const [targetItem, setTargetItem] = useState('electronic-circuit')
+  const [rate, setRate] = useState(60)
+  const [beltTier, setBeltTier] = useState('transport-belt')
+  const [inserterTier, setInserterTier] = useState('inserter')
+  const [machineTier, setMachineTier] = useState('assembling-machine-1')
+  const [furnaceTier, setFurnaceTier] = useState('stone-furnace')
+  const [poleTier, setPoleTier] = useState('small-electric-pole')
   
   const [allItems, setAllItems] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -390,34 +398,25 @@ function App() {
             </div>
 
             {generationMode === 'adam' && (
-              <div className="ai-config-section">
-                <div className="section-header">
-                  <h3>🧠 AI Architecture Settings</h3>
+              <div className="ai-config-section" style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', borderRadius: '8px', padding: '15px', marginTop: '1rem' }}>
+                <div className="section-header" style={{ color: '#60a5fa', marginBottom: '10px' }}>
+                  <h3>🧠 ADAM Master Architect (Main Bus Mode)</h3>
+                  <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                    O Cérebro Backend calculará a saturação da esteira selecionada ({beltTier}) 
+                    e usará a IA para desenhar Módulos Perfeitos, replicando-os automaticamente 
+                    para formar uma fábrica Main Bus gigante!
+                  </p>
                 </div>
                 <div className="form-grid">
-                  <div className="form-group">
-                    <label>Block Size Constraint:</label>
-                    <select value={blockSizeLimit} onChange={(e) => setBlockSizeLimit(e.target.value)}>
-                      <option value="10x10">Small (10x10)</option>
-                      <option value="15x15">Standard (15x15)</option>
-                      <option value="20x20">Large (20x20)</option>
-                      <option value="blueprint">Full Size (IA Decides)</option>
-                    </select>
-                  </div>
                   <div className="form-group span-2">
-                    <label>Custom AI Instructions:</label>
+                    <label>Diretriz Espacial (Avançado):</label>
                     <input 
                       type="text" 
-                      placeholder="Ex: 'Use high density', 'Compact belts'..." 
+                      placeholder="Ex: 'Ultra compacto', 'Evitar postes no meio'..." 
                       value={customInstructions}
                       onChange={(e) => setCustomInstructions(e.target.value)}
                     />
                   </div>
-                </div>
-                <div className="ai-presets">
-                  <button onClick={() => setCustomInstructions("Ultra compact, minimize tiles")}>Compact</button>
-                  <button onClick={() => setCustomInstructions("Follow Main Bus alignment")}>Main Bus</button>
-                  <button onClick={() => setCustomInstructions("Maximize beacons distance")}>Efficiency</button>
                 </div>
               </div>
             )}

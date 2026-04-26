@@ -1,6 +1,19 @@
 import re
+import sys
+import os
 from typing import List, Dict, Any, Tuple, Optional
 from draftsman.data import entities
+
+# Configuração global: Caminho para o projeto ADAM (Single Source of Truth para a DSL)
+ADAM_PROJECT_PATH = r"c:\Code\Pessoal\Projeto_ADAM_Factorio\src\encoders"
+if ADAM_PROJECT_PATH not in sys.path:
+    sys.path.append(ADAM_PROJECT_PATH)
+
+try:
+    from abbreviation_table import ABBREV_TO_FULL
+except ImportError:
+    print("ERRO: Não foi possível carregar a tabela de abreviações do ADAM.")
+    ABBREV_TO_FULL = {}
 
 class ReverseTranslator:
     """
@@ -8,49 +21,9 @@ class ReverseTranslator:
     Implementa normalização de coordenadas e extração de metadados.
     """
 
-    TOKEN_MAP = {
-        # Assemblers
-        'M1': 'assembling-machine-1',
-        'M2': 'assembling-machine-2',
-        'M3': 'assembling-machine-3',
-        # Furnaces
-        'F1': 'stone-furnace',
-        'F2': 'steel-furnace',
-        'F3': 'electric-furnace',
-        # Belts
-        'B1': 'transport-belt',
-        'B2': 'fast-transport-belt',
-        'B3': 'express-transport-belt',
-        'U1': 'underground-belt',
-        'U2': 'fast-underground-belt',
-        'U3': 'express-underground-belt',
-        'S1': 'splitter',
-        'S2': 'fast-splitter',
-        'S3': 'express-splitter',
-        # Inserters
-        'I1': 'inserter',
-        'I2': 'fast-inserter',
-        'I3': 'long-handed-inserter',
-        'I4': 'stack-inserter',
-        # Electrical
-        'P1': 'small-electric-pole',
-        'P2': 'medium-electric-pole',
-        'RP': 'roboport',
-        # Logistics
-        'CLP': 'passive-provider-chest',
-        'CLR': 'requester-chest',
-        'CLS': 'storage-chest',
-        'CLB': 'buffer-chest',
-        'CLA': 'active-provider-chest',
-        # Fluids
-        'PU': 'pipe',
-        'UP': 'pipe-to-ground',
-        'T': 'storage-tank',
-    }
-
     DIR_MAP = {
-        'U': 0, 'R': 2, 'D': 4, 'L': 6,
         '0': 0, '2': 2, '4': 4, '6': 6,
+        'U': 0, 'R': 2, 'D': 4, 'L': 6,
     }
 
     def __init__(self):
@@ -70,12 +43,12 @@ class ReverseTranslator:
             if not line or line.startswith('#'):
                 continue
 
-            # Processa Metadados: META|SIZE:WxH
-            if line.startswith('META|'):
+            # Processa Metadados: S W H
+            if line.startswith('S '):
                 metadata = self._parse_meta(line)
                 continue
 
-            # Processa Tokens: TOKEN|X|Y|DIR|RECIPE|EXTRA
+            # Processa Tokens: TOKEN X Y DIR RECIPE
             entity = self._parse_token_line(line)
             if entity:
                 entities_list.append(entity)
@@ -86,24 +59,24 @@ class ReverseTranslator:
         return normalized_entities, metadata
 
     def _parse_meta(self, line: str) -> Dict[str, Any]:
-        """Extrai tamanho do bloco: META|SIZE:10x15 -> {'width': 10, 'height': 15}"""
+        """Extrai tamanho do bloco: S 12 8 -> {'width': 12, 'height': 8}"""
         try:
-            match = re.search(r'SIZE:(\d+)x(\d+)', line)
-            if match:
+            parts = line.split()
+            if len(parts) >= 3 and parts[0] == 'S':
                 return {
-                    "width": int(match.group(1)),
-                    "height": int(match.group(2))
+                    "width": int(parts[1]),
+                    "height": int(parts[2])
                 }
         except Exception as e:
             self.hallucination_log.append(f"Erro ao parsear META: {e}")
         return {"width": 0, "height": 0}
 
     def _parse_token_line(self, line: str) -> Optional[Dict[str, Any]]:
-        parts = line.split('|')
-        if len(parts) < 3:
+        parts = line.split()
+        if len(parts) < 4:
             return None
 
-        token = parts[0].upper()
+        token = parts[0].lower()
         try:
             x = float(parts[1])
             y = float(parts[2])
@@ -111,7 +84,7 @@ class ReverseTranslator:
             self.hallucination_log.append(f"Coordenadas inválidas: {line}")
             return None
 
-        entity_name = self.TOKEN_MAP.get(token)
+        entity_name = ABBREV_TO_FULL.get(token)
         if not entity_name:
             # Tenta usar o token diretamente se for um nome válido do Factorio
             if token.lower() in entities.raw:
@@ -123,16 +96,13 @@ class ReverseTranslator:
         ent = {
             "name": entity_name,
             "position": {"x": x, "y": y},
-            "direction": self.DIR_MAP.get(parts[3] if len(parts) > 3 else 'U', 0)
+            "direction": self.DIR_MAP.get(parts[3] if len(parts) > 3 else '0', 0)
         }
 
-        # Receita (Opcional)
+        # Receita ou Extra (Opcional - ex: io_type para undergrounds)
         if len(parts) > 4 and parts[4]:
             ent["recipe"] = parts[4]
-
-        # Extra (Opcional - ex: io_type para undergrounds)
-        if len(parts) > 5 and parts[5]:
-            ent["type"] = parts[5] # Pelo drafting, undergrounds usam 'type': 'input'/'output'
+            ent["type"] = parts[4] # Pelo drafting, undergrounds usam 'type': 'input'/'output'
 
         return ent
 

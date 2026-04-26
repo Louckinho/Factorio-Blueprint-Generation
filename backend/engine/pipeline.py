@@ -4,21 +4,28 @@ from .solver import RateSolver
 from .draftsman_compiler import DraftsmanCompiler
 from .ai_bridge import AIBridge
 from .translator import ReverseTranslator
-from api.schemas import ADAMWorkOrderSchema, MachineRequirement, AIContextSchema
+from .block_assembler import BlockAssembler
+
+def get_belt_capacity(belt_name: str) -> float:
+    """Retorna a capacidade de itens/seg da esteira"""
+    if "express" in belt_name: return 45.0
+    if "fast" in belt_name: return 30.0
+    return 15.0
 
 async def execute_generation_pipeline(payload: dict):
     """
     Novo Pipeline Híbrido:
-    Passo A: Matemática de Produção (Django)
-    Passo B: Ordem de Serviço -> IA (ADAM)
-    Passo C: Tradução DSL -> Entidades (ReverseTranslator)
-    Passo D: Escalonamento (Tiling) e Compilação Final (Draftsman)
+    Passo A: Matemática de Produção e Saturação (Django)
+    Passo B: Ordem de Serviço Modular -> IA (ADAM)
+    Passo C: Montagem do Main Bus (BlockAssembler)
+    Passo D: Compilação Final (Draftsman)
     """
-    
     target_item = payload.get("target", "unknown-item")
     rate = payload.get("rate_per_minute", 60)
     tech_tier_data = payload.get("tech_tier", {})
-    ai_context_data = payload.get("ai_context", {})
+    
+    belt_name = tech_tier_data.get("belt", "transport-belt")
+    belt_capacity_per_sec = get_belt_capacity(belt_name)
     
     # 1. Passo A: Rate Solver (Cérebro Matemático)
     solver = RateSolver()
@@ -30,62 +37,69 @@ async def execute_generation_pipeline(payload: dict):
         furnace_name=tech_tier_data.get("furnace", "electric-furnace")
     )
 
-    # Filtramos apenas o nó final para o ADAM (ou poderíamos enviar a árvore toda)
-    # Para este MVP, focamos no layout do item alvo.
-    target_node = next((n for n in nodes_requirements if n["item"] == target_item), None)
-    if not target_node:
-        raise ValueError(f"Não foi possível calcular requisitos para {target_item}")
+    # Filtrar apenas nós de produção (que precisam de máquinas)
+    production_nodes = [n for n in nodes_requirements if not n["is_raw_input"]]
+    
+    if not production_nodes:
+        raise ValueError(f"Não foi possível calcular requisitos de produção para {target_item}")
 
-    # 2. Passo B: Formatar Ordem de Serviço e Chamar IA
-    work_order = ADAMWorkOrderSchema(
-        target_item=target_item,
-        total_rate_per_minute=rate,
-        requested_machines=[
-            MachineRequirement(
-                item=target_item, 
-                count=target_node["machines_needed"], 
-                machine_type=target_node["machine_type"]
-            )
-        ],
-        tech_tier=tech_tier_data,
-        context=AIContextSchema(**ai_context_data)
-    )
-
-    dsl_response = await AIBridge.call_adam(work_order.model_dump_json(indent=2))
-    if not dsl_response:
-        raise RuntimeError("A IA ADAM não retornou uma resposta válida.")
-
-    # 3. Passo C: Tradução DSL
     translator = ReverseTranslator()
-    entities, metadata = translator.decode_dsl(dsl_response)
-    
-    if not entities:
-        raise RuntimeError("A DSL retornada pela IA não contém entidades válidas.")
+    assembler = BlockAssembler()
+    modules_data = []
 
-    # 4. Passo D: Tiling (Escalabilidade de Bloco)
-    # Calculamos quantos blocos da IA precisamos para atingir a meta do Django
-    machines_in_block = sum(1 for e in entities if e["name"] == target_node["machine_type"])
-    if machines_in_block == 0:
-        # Fallback caso a IA use nomes diferentes ou falhe no contador
-        machines_in_block = 1 
+    # 2. Chunking por Saturação de Esteira (Para cada nó da árvore)
+    for node in production_nodes:
+        item = node["item"]
+        total_machines = math.ceil(node["machines_needed"])
+        rate_sec = node["rate_per_sec"]
+        machine_type = node["machine_type"]
+        
+        # Se for fluido, a capacidade do cano é enorme, não quebra por saturação de esteira
+        capacity = 1200.0 if node.get("is_fluid") else belt_capacity_per_sec
+        saturated_belts = math.ceil(rate_sec / capacity) if rate_sec > 0 else 1
+        
+        machines_per_block = math.ceil(total_machines / saturated_belts) if saturated_belts > 0 else total_machines
+        
+        # Clamp ao limite de segurança da IA (MAX_AI_MACHINES)
+        MAX_AI_MACHINES = 48
+        if machines_per_block > MAX_AI_MACHINES:
+            machines_per_block = MAX_AI_MACHINES
+            saturated_belts = math.ceil(total_machines / MAX_AI_MACHINES)
 
-    num_blocks = math.ceil(target_node["machines_needed"] / machines_in_block)
-    
-    # Multiplexação Horizontal com Espaço (Gap)
-    final_entities = []
-    block_width = metadata.get("width", 10)
-    gap = 2 # Espaço entre blocos conforme solicitado
+        if machines_per_block <= 0:
+            continue
+            
+        tier = 1
+        if machine_type[-1].isdigit():
+            tier = machine_type[-1]
+            
+        # Work order exata que a IA aprendeu no Treinamento
+        work_order = f"Generate: [item={item}|machine={machine_type}|count={machines_per_block}|tier={tier}]"
+        
+        # Chama a IA para desenhar APENAS UM bloco saturado
+        dsl_response = await AIBridge.call_adam(work_order)
+        if not dsl_response:
+            print(f"[AVISO] IA falhou ao gerar {item}")
+            continue
+            
+        entities, metadata = translator.decode_dsl(dsl_response)
+        
+        if entities:
+            modules_data.append({
+                "item": item,
+                "entities": entities,
+                "num_chunks": saturated_belts,
+                "metadata": metadata
+            })
 
-    for i in range(num_blocks):
-        offset_x = i * (block_width + gap)
-        for ent in entities:
-            new_ent = json.loads(json.dumps(ent)) # Deep copy
-            new_ent["position"]["x"] += offset_x
-            final_entities.append(new_ent)
+    if not modules_data:
+        raise RuntimeError("Falha total na geração da fábrica. Nenhum módulo válido foi criado.")
 
-    # 5. Compilação Final (Draftsman)
-    compiler = DraftsmanCompiler(label=f"ADAM Block: {target_item} x{num_blocks}")
-    # Nota: Refatoramos o compiler para aceitar entidades brutas da DSL
+    # 3. Montagem do Main Bus (Tiling)
+    final_entities = assembler.assemble(modules_data)
+
+    # 4. Compilação (Draftsman)
+    compiler = DraftsmanCompiler(label=f"ADAM Factory: {target_item}")
     blueprint_string, entities_map = compiler.generate_from_entities(
         final_entities,
         label=f"FBG-ADAM | {target_item} | {rate}/min"
